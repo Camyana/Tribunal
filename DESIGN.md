@@ -66,6 +66,40 @@ particular the panel grain must **blend**, never add.
   face: a costume font undoes the restraint the rest of the system buys.
 - Depth comes from *value* — `panel` against `raised` — and from nothing else.
 
+## Surfaces
+
+There are two, and which one a window gets depends on how it arrived.
+
+**Solid** is the obsidian slab: the docket and the settings. You opened those,
+so the game can wait behind them.
+
+**Veil** is for the two windows nobody asked for — the ballot and the verdict.
+They open on their own while people are still running back, and a slab dropped
+over a fifth of the screen at that moment is rude. So the container goes and
+the content stays: the panel fill and its grain drop to about half coverage,
+the top and bottom ends run out to nothing over 12px, and the border box
+becomes four corner ticks. What is left of the opacity is spent only where
+something has to be read — ballot rows keep 90% of their backing, and every
+other block of type (the title block, the question, the verdict's name, its
+tally, both footers) sits on a `void` plate whose ends fade out, so it never
+reads as a second box inside the first. The window becomes a set of plates held
+in place by hairlines rather than a box with things in it.
+
+Over a dungeon interior the two surfaces are indistinguishable — 14.0:1 against
+14.4:1 for primary type. The veil only costs anything outdoors, which is where
+it is worth it.
+
+`TribunalDB.settings.opacity` scales every veil alpha. The veil is drawn at
+0.75, so the setting reads as a straight percentage of the intended look: 1.0
+is the densest it goes, 0.4 is barely more than the type itself.
+
+**The one shadow.** Veiled type carries a 1px hard black shadow at 0.85, no
+blur. This is not the drop shadow banned below: that one is a fake light source
+used to lift a panel off the screen, and it is visible on obsidian. This one is
+a single-pixel dark counter-edge that exists solely so 10px tracked caps
+survive a snowfield, and it is off entirely on the solid windows, where value
+still does all the work.
+
 ## Motion
 
 **The strike is the signature.** Nothing gold ever fades in — it is struck,

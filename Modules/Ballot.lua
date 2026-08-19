@@ -59,8 +59,11 @@ end
 function Ballot:Build()
     if self.frame then return self.frame end
 
+    -- Veiled: nobody opened this window. It arrives on its own while the party
+    -- is still running back, so it holds its elements over the game rather
+    -- than covering a fifth of the screen with a slab.
     local f = Theme:Panel(UIParent, {
-        name = "TribunalBallotFrame", width = 392, height = 300,
+        name = "TribunalBallotFrame", width = 392, height = 300, chrome = "veil",
     })
     f:SetPoint("CENTER", UIParent, "CENTER", 0, 90)
     f:SetFrameStrata("DIALOG")
@@ -72,6 +75,14 @@ function Ballot:Build()
     Theme:MakeCloseable(f, "TribunalBallotFrame")
 
     -- Question line -------------------------------------------------------
+    -- The rows carry their own backing; the question and the countdown do not,
+    -- so they get a plate of their own. It runs from the header rule to the
+    -- first row, which means both of its edges land on something already
+    -- drawn there and it never reads as a band of its own.
+    self.questionScrim = Theme:Scrim(f, { height = 40 })
+    self.questionScrim:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -56)
+    self.questionScrim:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, -56)
+
     local question = Theme:Label(f, "Who wiped us?", { size = 11, spacing = 2.2, color = "text" })
     question:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, -72)
     self.question = question
@@ -90,6 +101,12 @@ function Ballot:Build()
     self.list:SetHeight(1)
 
     -- Footer --------------------------------------------------------------
+    -- Same plate under the footer, stopping 8px short of the bottom so the
+    -- panel's own end still dissolves below it.
+    self.footScrim = Theme:Scrim(f, { height = 40 })
+    self.footScrim:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 8)
+    self.footScrim:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0, 8)
+
     local footLine = f:CreateTexture(nil, "ARTWORK")
     footLine:SetHeight(1)
     footLine:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 48)
@@ -409,10 +426,19 @@ end
 function Ballot:BuildPrompt()
     if self.prompt then return self.prompt end
 
-    local p = Theme:Panel(UIParent, { width = 272, height = 96, grain = false })
+    -- Veiled like the ballot it leads to. The grain that used to be switched
+    -- off here is now the surface, so it has to stay: without it a toast this
+    -- small has nothing left to sit on.
+    local p = Theme:Panel(UIParent, { width = 272, height = 96, chrome = "veil" })
     p:SetPoint("TOP", UIParent, "TOP", 0, -180)
     p:SetFrameStrata("HIGH")
     p:Hide()
+
+    -- The toast is 96px tall and every line in it matters, so the plate runs
+    -- the whole body rather than banding it.
+    p.scrim = Theme:Scrim(p, {})
+    p.scrim:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -8)
+    p.scrim:SetPoint("BOTTOMRIGHT", p, "BOTTOMRIGHT", 0, 8)
 
     local accent = p:CreateTexture(nil, "ARTWORK")
     accent:SetWidth(2)

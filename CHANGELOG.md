@@ -13,6 +13,9 @@ First release.
   deadlock rather than the conviction layout with the colour drained out.
 - A permanent docket: convictions, trials stood, conviction rate, votes cast
   and votes received, per character, across every group you play with.
+- The ballot and the verdict are see-through: they arrive on their own mid-run,
+  so they hold their elements over the game instead of covering it. Adjustable
+  in settings; the docket and the settings window stay solid.
 - Minimap button with a drawer, draggable around the ring.
 - Optional prompt after a detected wipe. It never opens a ballot on its own.
 - Sound design for the court: the gavel, the ballot taps, the countdown, the

@@ -370,6 +370,68 @@ check("docket capped at 200", #TribunalDB.history == 200, #TribunalDB.history)
 T.Session.current = nil
 
 --------------------------------------------------------------------------------
+-- The verdict seal carries the convicted player's face
+--------------------------------------------------------------------------------
+
+section("Verdict seal portrait")
+
+mock.inGroup = true
+mock.Fire("GROUP_ROSTER_UPDATE")
+mock.Advance(2)
+T.Session.current = nil
+wipe(T.Session.lastCallBy)
+mock.outOfRange = {}
+
+local guiltyResult = {
+    list = { { full = "Morgrath-Ravencrest", short = "Morgrath",
+               class = "DEATHKNIGHT", count = 2 } },
+    total = 2, winner = "Morgrath-Ravencrest", count = 2,
+    hung = false, tied = false, label = "Ara-Kara +18",
+}
+local guiltySession = {
+    label = "Ara-Kara +18",
+    candidates = { { full = "Morgrath-Ravencrest", short = "Morgrath",
+                     class = "DEATHKNIGHT" } },
+}
+
+T.Verdict:Show(guiltyResult, guiltySession)
+mock.Advance(1)
+check("seal shows the accused, not the emblem",
+      T.Verdict.seal.faceMode == "portrait", T.Verdict.seal.faceMode)
+check("the mark is hidden while a face is shown",
+      T.Verdict.seal.glyph:IsShown() == false)
+check("no face watch needed once resolved", T.Verdict.faceTicker == nil)
+T.Verdict:Close()
+mock.Advance(1)
+
+-- The convicted player is usually a corpse elsewhere when the verdict lands.
+mock.outOfRange["Morgrath"] = true
+T.Verdict:Show(guiltyResult, guiltySession)
+mock.Advance(1)
+check("out-of-range accused falls back to a class icon",
+      T.Verdict.seal.faceMode == "class", T.Verdict.seal.faceMode)
+check("face watch armed while unresolved", T.Verdict.faceTicker ~= nil)
+
+mock.outOfRange["Morgrath"] = nil
+mock.Advance(3)
+check("face fills in once they are visible again",
+      T.Verdict.seal.faceMode == "portrait", T.Verdict.seal.faceMode)
+check("watch stops once the face resolves", T.Verdict.faceTicker == nil)
+T.Verdict:Close()
+mock.Advance(1)
+
+-- Nobody was convicted, so there is nobody to show.
+T.Verdict:Show({ list = {}, total = 0, winner = nil, count = 0, hung = true,
+                 label = "Somewhere" }, { candidates = {}, label = "Somewhere" })
+mock.Advance(1)
+check("a hung jury shows the mark, not a face",
+      T.Verdict.seal.faceMode == nil and T.Verdict.seal.face:IsShown() == false)
+check("no face watch on a hung jury", T.Verdict.faceTicker == nil)
+T.Verdict:Close()
+mock.Advance(1)
+check("face watch stopped on close", T.Verdict.faceTicker == nil)
+
+--------------------------------------------------------------------------------
 -- Portraits on the ballot
 --------------------------------------------------------------------------------
 
@@ -549,6 +611,108 @@ mock.Advance(1)
 check("verdict: auto-close timer armed", T.Verdict.autoClose ~= nil)
 clickClose(T.Verdict, "verdict")
 check("verdict: auto-close timer cancelled", T.Verdict.autoClose == nil)
+
+--------------------------------------------------------------------------------
+-- Two surfaces: the windows you open stay solid, the ones that arrive do not
+--------------------------------------------------------------------------------
+
+section("Chrome")
+
+local function fillAlpha(frame)
+    local c = frame and frame.bg and rawget(frame.bg, "__color")
+    return c and c[4] or nil
+end
+
+local function shadowAlpha(obj)
+    local fs = (obj.glyphs and obj.glyphs[1]) or obj
+    return select(4, fs:GetShadowColor())
+end
+
+T.Ballot:Build(); T.Verdict:Build(); T.Ballot:BuildPrompt()
+T.Board:Show(); T.Config:Open()
+mock.Advance(1)
+
+check("ballot is veiled", T.Ballot.frame.tribunalChrome == "veil",
+      T.Ballot.frame.tribunalChrome)
+check("verdict is veiled", T.Verdict.frame.tribunalChrome == "veil")
+check("the wipe prompt is veiled", T.Ballot.prompt.tribunalChrome == "veil")
+check("the docket stays solid", T.Board.frame.tribunalChrome == "solid",
+      T.Board.frame.tribunalChrome)
+check("settings stay solid", T.Config.frame.tribunalChrome == "solid")
+
+-- Chrome is declared on the panel and inherited, so nothing built inside one
+-- has to ask for it.
+check("chrome is inherited down the parent chain",
+      T.Theme:ChromeOf(T.Verdict.list) == "veil", T.Theme:ChromeOf(T.Verdict.list))
+check("and a solid window's contents stay solid",
+      T.Theme:ChromeOf(T.Config.scroll.content) == "solid")
+
+local ballotFill, rowAlpha = fillAlpha(T.Ballot.frame), fillAlpha(T.Ballot.rows[1])
+check("the container all but disappears", ballotFill and ballotFill < 0.35, ballotFill)
+check("the rows keep their backing", rowAlpha and rowAlpha > 0.85, rowAlpha)
+check("content is much denser than its container", rowAlpha - ballotFill > 0.5,
+      rowAlpha - ballotFill)
+check("the docket's surface is untouched", fillAlpha(T.Board.frame) == 1,
+      fillAlpha(T.Board.frame))
+check("the settings' surface is untouched", fillAlpha(T.Config.frame) == 1,
+      fillAlpha(T.Config.frame))
+
+check("a veiled window has corner ticks, not a lid",
+      T.Ballot.frame.ticks ~= nil and #T.Ballot.frame.ticks == 8,
+      T.Ballot.frame.ticks and #T.Ballot.frame.ticks)
+check("and no border box", T.Ballot.frame.borderEdges == nil)
+check("a solid window keeps its border box",
+      T.Board.frame.borderEdges ~= nil and T.Board.frame.ticks == nil)
+
+-- The legibility shadow: on over the veil, off everywhere else.
+check("veiled type carries the legibility shadow",
+      shadowAlpha(T.Ballot.progressLabel) > 0, shadowAlpha(T.Ballot.progressLabel))
+check("so does the verdict's kicker", shadowAlpha(T.Verdict.kicker) > 0)
+check("solid windows still take their depth from value alone",
+      shadowAlpha(T.Board.footNote) == 0, shadowAlpha(T.Board.footNote))
+check("including their plain FontStrings",
+      shadowAlpha(T.Config.recordNote) == 0, shadowAlpha(T.Config.recordNote))
+
+-- The tally plate only exists when there is a tally.
+T.Verdict:Show({ list = {}, total = 0, winner = nil, count = 0, hung = true,
+                 label = "Nowhere" }, { candidates = {}, label = "Nowhere" })
+mock.Advance(1)
+check("no tally, no plate under it", T.Verdict.listScrim:IsShown() == false)
+T.Verdict:Show({ list = { { full = "Kazrul-Ravencrest", short = "Kazrul", count = 2 } },
+                 total = 2, winner = "Kazrul-Ravencrest", count = 2,
+                 hung = false, tied = false, label = "Nowhere" },
+               { candidates = {}, label = "Nowhere" })
+mock.Advance(1)
+check("a tally gets one", T.Verdict.listScrim:IsShown() == true)
+T.Verdict:Close()
+mock.Advance(1)
+
+-- The slider.
+local SET = TribunalDB.settings
+check("opacity defaults to the value the veil was drawn at", SET.opacity == 0.75,
+      SET.opacity)
+
+SET.opacity = 1.0
+T.Theme:RefreshVeil()
+local dense = fillAlpha(T.Ballot.frame)
+SET.opacity = 0.4
+T.Theme:RefreshVeil()
+local thin = fillAlpha(T.Ballot.frame)
+check("the slider repaints a window that is already open", dense > thin,
+      ("%.3f vs %.3f"):format(dense, thin))
+check("100% is the densest the veil ever goes", dense < 0.36, dense)
+check("the rows follow the slider too", fillAlpha(T.Ballot.rows[1]) < 0.6,
+      fillAlpha(T.Ballot.rows[1]))
+
+SET.opacity = nil
+check("a missing setting falls back to the drawn value",
+      math.abs(T.Theme:VeilAlpha("fill") - T.Theme.VEIL.fill) < 0.001,
+      T.Theme:VeilAlpha("fill"))
+SET.opacity = 5
+check("a nonsense setting is clamped", T.Theme:VeilAlpha("fill") < 0.36,
+      T.Theme:VeilAlpha("fill"))
+SET.opacity = 0.75
+T.Theme:RefreshVeil()
 
 --------------------------------------------------------------------------------
 -- The whole UI must still build with the art switched off

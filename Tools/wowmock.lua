@@ -100,6 +100,21 @@ local function NewWidget(kind, name, parent)
         CreateFontString  = function() return NewWidget("FontString") end,
         CreateMaskTexture = function() return NewWidget("MaskTexture") end,
         CreateAnimationGroup = function() return NewWidget("AnimGroup") end,
+        -- Real, because the chrome a widget inherits is resolved by walking up
+        -- the parent chain; a stub returning nil would make every frame look
+        -- like a top-level one.
+        GetParent = function(self) return rawget(self, "__parent") end,
+        -- Recorded, because the legibility shadow on the veiled windows is a
+        -- deliberate exception to a rule the design states, and a test has to
+        -- be able to see that it is on there and nowhere else.
+        SetShadowColor = function(self, r, g, b, a)
+            rawset(self, "__shadow", { r, g, b, a })
+        end,
+        GetShadowColor = function(self)
+            local s = rawget(self, "__shadow")
+            if not s then return 0, 0, 0, 0 end
+            return s[1], s[2], s[3], s[4]
+        end,
         GetPoint  = function() return "CENTER", M.UIParent, "CENTER", 0, 0 end,
         GetCenter = function() return 400, 300 end,
         GetMinMaxValues = function() return 0, 1 end,

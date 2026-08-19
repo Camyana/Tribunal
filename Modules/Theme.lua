@@ -72,6 +72,76 @@ Theme.FONT = {
 }
 
 --------------------------------------------------------------------------------
+-- Surface
+--------------------------------------------------------------------------------
+
+-- There are two surfaces, not one.
+--
+-- `solid` is the original slab, and it stays the treatment for the two windows
+-- you deliberately opened: the docket and the settings. You asked for those,
+-- so a surface you can read against is the right answer.
+--
+-- `veil` is for the two that arrive on their own in the middle of a pull -- the
+-- ballot and the verdict. Those have to sit *in* the game rather than on top of
+-- it, so the container all but disappears and only the blocks of type keep a
+-- backing. It is still depth from value, exactly as DESIGN.md asks; there is
+-- simply less of it, and what remains is spent on what has to be read.
+--
+-- The veil is drawn at 75%, so TribunalDB.settings.opacity reads as a plain
+-- percentage of the intended look: 100% is as dense as the veil ever gets and
+-- 40% is barely more than the type itself.
+local VEIL_REF = 0.75
+
+Theme.VEIL = {
+    fill  = 0.26,   -- flat panel colour across the body
+    grain = 0.40,   -- the tile is opaque, so its alpha *is* the surface
+    fade  = 12,     -- px over which the top and bottom ends run to nothing
+    edge  = 0.85,   -- corner ticks
+    row   = 0.90,   -- a row is content, so it keeps its backing
+    scrim = 0.32,   -- local backing under a block of type
+    shade = 0.85,   -- see Theme:Text
+}
+
+function Theme:Opacity()
+    local s = TribunalDB and TribunalDB.settings
+    local k = s and s.opacity
+    if type(k) ~= "number" then k = VEIL_REF end
+    return math.max(0.4, math.min(1, k)) / VEIL_REF
+end
+
+function Theme:VeilAlpha(key)
+    return math.min(1, (self.VEIL[key] or 1) * self:Opacity())
+end
+
+-- Everything whose alpha follows the setting registers here, so dragging the
+-- slider repaints the open ballot instead of waiting for the next trial.
+Theme.veiled = {}
+
+function Theme:TrackVeil(obj)
+    self.veiled[#self.veiled + 1] = obj
+    return obj
+end
+
+function Theme:RefreshVeil()
+    for _, obj in ipairs(self.veiled) do
+        if type(obj.ApplyVeil) == "function" then obj:ApplyVeil() end
+    end
+end
+
+-- Chrome is declared once, on the panel, and inherited by everything built
+-- inside it. The alternative is every label in two modules remembering to ask
+-- for the legibility treatment, which is exactly the kind of thing that gets
+-- forgotten on the one label that needed it.
+function Theme:ChromeOf(frame)
+    for _ = 1, 12 do
+        if not frame then break end
+        if frame.tribunalChrome then return frame.tribunalChrome end
+        frame = frame.GetParent and frame:GetParent() or nil
+    end
+    return "solid"
+end
+
+--------------------------------------------------------------------------------
 -- Primitives
 --------------------------------------------------------------------------------
 
@@ -127,13 +197,35 @@ function Theme:Art(tex, name, ...)
     return tex:GetTexture() ~= nil
 end
 
+-- Over a veil the type has no reliable backing, so it gets a 1px hard shadow.
+--
+-- This is not the drop shadow DESIGN.md bans. That one is a fake light source:
+-- offset, soft, sitting under a whole panel to lift it off the screen, and
+-- visible on the obsidian these windows normally sit on. This is a
+-- single-pixel dark counter-edge with no blur that exists for one reason --
+-- 10px tracked caps have to survive a snowfield -- and it is off entirely on
+-- the solid windows, where value alone still does the work.
+local function ShadeFor(parent, opts)
+    if opts.shade ~= nil then return opts.shade and Theme.VEIL.shade or 0 end
+    return Theme:ChromeOf(parent) == "veil" and Theme.VEIL.shade or 0
+end
+
+local function ApplyShade(fs, shade)
+    if shade > 0 then
+        fs:SetShadowColor(0, 0, 0, shade)
+        fs:SetShadowOffset(1, -1)
+    else
+        fs:SetShadowColor(0, 0, 0, 0)  -- depth comes from value, never from shadow
+    end
+end
+
 function Theme:Text(parent, size, opts)
     opts = opts or {}
     local fs = parent:CreateFontString(nil, opts.layer or "OVERLAY")
     fs:SetFont(opts.font or self.FONT.body, size or 12, opts.flags or "")
     fs:SetTextColor(self:Color(opts.color or "text", opts.alpha))
     fs:SetJustifyH(opts.justify or "LEFT")
-    fs:SetShadowColor(0, 0, 0, 0)  -- depth comes from value, never from shadow
+    ApplyShade(fs, ShadeFor(parent, opts))
     if opts.text then fs:SetText(opts.text) end
     if opts.width then fs:SetWidth(opts.width) end
     return fs
@@ -151,6 +243,9 @@ function Theme:Spaced(parent, text, opts)
     local f = CreateFrame("Frame", nil, parent)
     f:SetHeight(size + 4)
     f.glyphs = {}
+    -- Resolved once: glyphs are minted lazily as strings get longer, and a
+    -- glyph born after the fact still has to carry the same treatment.
+    f.shade = ShadeFor(parent, opts)
 
     function f:SetText(str)
         str = tostring(str or "")
@@ -165,6 +260,7 @@ function Theme:Spaced(parent, text, opts)
             if not g then
                 g = self:CreateFontString(nil, opts.layer or "OVERLAY")
                 g:SetFont(font, size, flags)
+                ApplyShade(g, self.shade or 0)
                 self.glyphs[i] = g
             end
             -- Colour and alpha live on the frame, not on the glyphs, because
@@ -240,25 +336,134 @@ end
 -- Panel
 --------------------------------------------------------------------------------
 
+-- Four 1px corner marks instead of a box.
+--
+-- A closed border is the strongest "this is a window" signal a frame has: it
+-- is the lid. Two short arms say where the corner is and let the eye close the
+-- rectangle itself, which is all a veiled window needs.
+function Theme:CornerTicks(parent, color, len)
+    len = len or 14
+    local r, g, b = self:Color(color or "hairline")
+    local out = {}
+    for _, point in ipairs({ "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }) do
+        -- One anchored point plus a size fixes the arm, so each corner needs
+        -- no per-corner sign juggling.
+        for _, size in ipairs({ { len, 1 }, { 1, len } }) do
+            local t = parent:CreateTexture(nil, "BORDER")
+            t:SetSize(size[1], size[2])
+            t:SetPoint(point, parent, point, 0, 0)
+            t:SetColorTexture(r, g, b, 1)
+            out[#out + 1] = t
+        end
+    end
+    return out
+end
+
+-- A soft-ended plate under a block of type.
+--
+-- The veil on its own cannot hold 10px tracked caps over a snowfield, so the
+-- opacity that is left gets spent exactly where something has to be read. The
+-- ends run to nothing, so it never reads as a second box inside the first.
+function Theme:Scrim(parent, opts)
+    opts = opts or {}
+    local s = CreateFrame("Frame", nil, parent)
+    -- Level with the parent's own layers rather than above its other children,
+    -- so the seal, its bloom and the rows still draw over this.
+    s:SetFrameLevel(parent:GetFrameLevel())
+    if opts.height then s:SetHeight(opts.height) end
+
+    local r, g, b = self:Color(opts.color or "void")
+    local soft = opts.soft or 40
+
+    local core = s:CreateTexture(nil, "BACKGROUND")
+    core:SetPoint("TOPLEFT", soft, 0)
+    core:SetPoint("BOTTOMRIGHT", -soft, 0)
+
+    local function endCap(side)
+        local t = s:CreateTexture(nil, "BACKGROUND")
+        t:SetWidth(soft)
+        t:SetPoint("TOP" .. side)
+        t:SetPoint("BOTTOM" .. side)
+        return t
+    end
+    local left, right = endCap("LEFT"), endCap("RIGHT")
+
+    function s:ApplyVeil()
+        local a = math.min(1, Theme:VeilAlpha("scrim") * (opts.strength or 1))
+        core:SetColorTexture(r, g, b, a)
+        if left.SetGradient then
+            -- The gradient is a vertex colour and multiplies the texture, so
+            -- the texture itself has to be white for the stops to land where
+            -- they say they do.
+            left:SetColorTexture(1, 1, 1, 1)
+            right:SetColorTexture(1, 1, 1, 1)
+            local clear, full = CreateColor(r, g, b, 0), CreateColor(r, g, b, a)
+            left:SetGradient("HORIZONTAL", clear, full)
+            right:SetGradient("HORIZONTAL", full, clear)
+        else
+            left:SetColorTexture(r, g, b, a * 0.5)
+            right:SetColorTexture(r, g, b, a * 0.5)
+        end
+    end
+
+    s:ApplyVeil()
+    Theme:TrackVeil(s)
+    return s
+end
+
 -- The base container: void backdrop, panel fill, optional grain, hairline edge.
+-- `opts.chrome` picks the surface: "solid" (the default) or "veil".
 function Theme:Panel(parent, opts)
     opts = opts or {}
+    local veil = opts.chrome == "veil"
     local f = CreateFrame("Frame", opts.name, parent or UIParent)
     f:SetSize(opts.width or 380, opts.height or 240)
+    f.tribunalChrome = veil and "veil" or "solid"
 
-    f.bg = self:Fill(f, opts.color or "panel", opts.alpha or 1, "BACKGROUND")
+    local fade = self.VEIL.fade
+    local pr, pg, pb = self:Color(opts.color or "panel")
+
+    if veil then
+        -- The body stops short of both ends, and the ends are gradients
+        -- running to nothing, so the window has no top or bottom edge left to
+        -- read as a lid.
+        local body = f:CreateTexture(nil, "BACKGROUND")
+        body:SetPoint("TOPLEFT", 0, -fade)
+        body:SetPoint("BOTTOMRIGHT", 0, fade)
+        f.bg = body
+
+        local function endCap(side)
+            local t = f:CreateTexture(nil, "BACKGROUND")
+            t:SetHeight(fade)
+            t:SetPoint(side .. "LEFT")
+            t:SetPoint(side .. "RIGHT")
+            return t
+        end
+        f.fadeTop, f.fadeBottom = endCap("TOP"), endCap("BOTTOM")
+    else
+        f.bg = self:Fill(f, opts.color or "panel", opts.alpha or 1, "BACKGROUND")
+    end
 
     -- Grain sits just above the fill. It must BLEND, not ADD: the tile is a
     -- dark surface in its own right, so adding it lifts the panel most of the
     -- way to the row colour and the two stop reading as separate planes.
+    --
+    -- Under the veil that same opacity is the point: the tile is the only
+    -- thing left with any body to it, so its alpha *is* the surface, and it
+    -- is clipped to the same inset the fill uses so the ends still dissolve.
     if opts.grain ~= false then
         local grain = f:CreateTexture(nil, "BACKGROUND", nil, 1)
-        grain:SetAllPoints()
+        if veil then
+            grain:SetPoint("TOPLEFT", 0, -fade)
+            grain:SetPoint("BOTTOMRIGHT", 0, fade)
+        else
+            grain:SetAllPoints()
+        end
         if self:Art(grain, "PanelTile", "REPEAT", "REPEAT") then
             grain:SetHorizTile(true)
             grain:SetVertTile(true)
             grain:SetBlendMode("BLEND")
-            grain:SetAlpha(0.85)
+            grain:SetAlpha(veil and self:VeilAlpha("grain") or 0.85)
             f.grain = grain
         end
     end
@@ -266,7 +471,32 @@ function Theme:Panel(parent, opts)
     -- No sheen and no drop shadow. A 1px highlight just inside the border is
     -- a bevel by another name, and a hard-edged dark rectangle behind the
     -- panel is a drop shadow. Separation here comes from value alone.
-    self:Border(f, opts.border or "hairline", opts.borderAlpha or 1)
+    if veil then
+        f.ticks = self:CornerTicks(f, opts.border or "hairline")
+
+        function f:ApplyVeil()
+            local a = Theme:VeilAlpha("fill")
+            self.bg:SetColorTexture(pr, pg, pb, a)
+            local clear, full = CreateColor(pr, pg, pb, 0), CreateColor(pr, pg, pb, a)
+            for side, t in pairs({ TOP = self.fadeTop, BOTTOM = self.fadeBottom }) do
+                if t.SetGradient then
+                    t:SetColorTexture(1, 1, 1, 1)
+                    -- VERTICAL runs min at the bottom and max at the top.
+                    if side == "TOP" then t:SetGradient("VERTICAL", full, clear)
+                    else t:SetGradient("VERTICAL", clear, full) end
+                else
+                    t:SetColorTexture(pr, pg, pb, a * 0.5)
+                end
+            end
+            if self.grain then self.grain:SetAlpha(Theme:VeilAlpha("grain")) end
+            for _, t in ipairs(self.ticks) do t:SetAlpha(Theme:VeilAlpha("edge")) end
+        end
+
+        f:ApplyVeil()
+        self:TrackVeil(f)
+    else
+        self:Border(f, opts.border or "hairline", opts.borderAlpha or 1)
+    end
 
     return f
 end
@@ -279,6 +509,18 @@ function Theme:Header(parent, title, subtitle, opts)
     h:SetPoint("TOPLEFT")
     h:SetPoint("TOPRIGHT")
     h:SetHeight(opts.height or 56)
+
+    -- The subtitle is 10px muted type, which is the single least survivable
+    -- thing on either veiled window: on bare veil over a snowfield it lands at
+    -- 1.5:1. So the title block gets the same plate every other block of type
+    -- gets. It hangs off the panel rather than the header so it stays below
+    -- the header's own layers, and stops 8px short of the top so the panel's
+    -- end still dissolves.
+    if parent and self:ChromeOf(parent) == "veil" then
+        h.scrim = self:Scrim(parent, {})
+        h.scrim:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -8)
+        h.scrim:SetPoint("BOTTOMRIGHT", parent, "TOPRIGHT", 0, -(opts.height or 56))
+    end
 
     local emblem = h:CreateTexture(nil, "ARTWORK")
     emblem:SetSize(20, 20)
@@ -321,11 +563,16 @@ function Theme:Header(parent, title, subtitle, opts)
         t:SetWidth(96)
         -- Pinned at the centre line so each half can be struck outward.
         t:SetPoint(side < 0 and "BOTTOMRIGHT" or "BOTTOMLEFT", h, "BOTTOM", 0, 0)
-        t:SetColorTexture(C.gold[1], C.gold[2], C.gold[3], 0.6)
+        -- White base: the gradient multiplies against the texture's own
+        -- colour, so setting gold here as well would square it and land on a
+        -- burnt orange at 0.36 alpha instead of gold at 0.6.
+        t:SetColorTexture(1, 1, 1, 1)
         if t.SetGradient then
             local out = CreateColor(C.gold[1], C.gold[2], C.gold[3], 0)
             local mid = CreateColor(C.gold[1], C.gold[2], C.gold[3], 0.6)
             t:SetGradient("HORIZONTAL", side < 0 and out or mid, side < 0 and mid or out)
+        else
+            t:SetColorTexture(C.gold[1], C.gold[2], C.gold[3], 0.6)
         end
         return t
     end
@@ -433,7 +680,11 @@ function Theme:Row(parent, opts)
     local r = CreateFrame("Button", nil, parent)
     r:SetHeight(opts.height or 34)
 
-    r.bg = self:Fill(r, "raised", 1)
+    -- Under the veil the container is what goes; a row is content, so it keeps
+    -- nearly all of its backing. That inversion is the whole idea: a set of
+    -- floating plates held by hairlines rather than a box with things in it.
+    r.veiled = self:ChromeOf(parent) == "veil"
+    r.bg = self:Fill(r, "raised", r.veiled and self:VeilAlpha("row") or 1)
 
     r.accent = r:CreateTexture(nil, "ARTWORK")
     r.accent:SetWidth(2)
@@ -447,7 +698,13 @@ function Theme:Row(parent, opts)
     function r:Highlight(on)
         local c = on and self.accentColor or "hairline"
         self.accent:SetColorTexture(Theme:Color(c))
-        self.bg:SetColorTexture(Theme:Color(on and "raisedHi" or "raised"))
+        self.bg:SetColorTexture(Theme:Color(on and "raisedHi" or "raised",
+            self.veiled and Theme:VeilAlpha("row") or 1))
+    end
+
+    if r.veiled then
+        function r:ApplyVeil() self:Highlight(self.selected) end
+        Theme:TrackVeil(r)
     end
 
     function r:SetSelected(on, instant)
@@ -503,13 +760,16 @@ function Theme:Bar(parent, opts)
     b.edge:SetWidth(10)
     b.edge:SetPoint("TOP")
     b.edge:SetPoint("BOTTOM")
-    b.edge:SetColorTexture(self:Color("goldLight"))
     b.edge:SetBlendMode("ADD")
     b.edge:SetAlpha(0)
     if b.edge.SetGradient then
+        -- White base, as above: the gradient multiplies against it.
+        b.edge:SetColorTexture(1, 1, 1, 1)
         b.edge:SetGradient("HORIZONTAL",
             CreateColor(C.goldLight[1], C.goldLight[2], C.goldLight[3], 0),
             CreateColor(C.goldLight[1], C.goldLight[2], C.goldLight[3], 1))
+    else
+        b.edge:SetColorTexture(self:Color("goldLight"))
     end
 
     b.value = 0
@@ -960,6 +1220,36 @@ function Theme:Circle(tex, frame, mask)
     return mask
 end
 
+-- Point a texture at a player's face, degrading as far as the client allows:
+-- the real portrait, then the class icon, then nothing. Returns which landed
+-- so callers can retry the ones that fell short.
+--
+-- A portrait only exists for a unit the client can currently see, which is
+-- rarely true of somebody running back from a wipe. Shared by the ballot rows
+-- and the verdict seal so both degrade identically.
+function Theme:ResolvePortrait(tex, unit, class)
+    if not tex then return "none" end
+
+    if unit and UnitExists(unit) and UnitIsConnected(unit) and UnitIsVisible(unit) then
+        tex:SetTexCoord(0, 1, 0, 1)
+        SetPortraitTexture(tex, unit)
+        tex:SetDesaturated(false)
+        tex:Show()
+        return "portrait"
+    end
+
+    local coords = class and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[class]
+    if coords then
+        tex:SetTexture("Interface\\TargetingFrame\\UI-Classes-Circles")
+        tex:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+        tex:Show()
+        return "class"
+    end
+
+    tex:Hide()
+    return "none"
+end
+
 -- A unit portrait in the addon's language: circular, cut with the same mask as
 -- the seal, and ringed with a 1px stroke that carries the class colour.
 --
@@ -1010,27 +1300,8 @@ function Theme:Portrait(parent, size)
         self.fill:SetColorTexture(r * 0.22, g * 0.22, b * 0.22, 1)
         self:SetRingColor(r, g, b, 0.85)
 
-        if unit and UnitExists(unit) and UnitIsConnected(unit) and UnitIsVisible(unit) then
-            self.icon:SetTexCoord(0, 1, 0, 1)
-            SetPortraitTexture(self.icon, unit)
-            self.icon:SetDesaturated(false)
-            self.icon:Show()
-            self.mode = "portrait"
-            return "portrait"
-        end
-
-        local coords = class and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[class]
-        if coords then
-            self.icon:SetTexture("Interface\\TargetingFrame\\UI-Classes-Circles")
-            self.icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
-            self.icon:Show()
-            self.mode = "class"
-            return "class"
-        end
-
-        self.icon:Hide()
-        self.mode = "none"
-        return "none"
+        self.mode = Theme:ResolvePortrait(self.icon, unit, class)
+        return self.mode
     end
 
     p:SetRingColor(self:Color("hairline"))

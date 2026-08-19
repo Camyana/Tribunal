@@ -77,17 +77,9 @@ local function BuildSeal(parent)
     local s = CreateFrame("Frame", nil, parent)
     s:SetSize(SEAL_GUILTY, SEAL_GUILTY)
 
-    local function circleMask(frame)
-        local m = frame:CreateMaskTexture()
-        m:SetAllPoints(frame)
-        m:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask",
-                     "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-        return m
-    end
-
     s.ring = s:CreateTexture(nil, "BACKGROUND")
     s.ring:SetAllPoints()
-    s.ring:AddMaskTexture(circleMask(s))
+    Theme:Circle(s.ring, s)
 
     -- A disc two pixels smaller, knocked back to the panel colour, leaves the
     -- ring behind as a 1px stroke.
@@ -95,21 +87,30 @@ local function BuildSeal(parent)
     inner:SetPoint("CENTER")
     inner:SetPoint("TOPLEFT", 1, -1)
     inner:SetPoint("BOTTOMRIGHT", -1, 1)
-    local innerMask = circleMask(inner)
+    local innerMask = Theme:CircleMask(inner)
 
     s.well = inner:CreateTexture(nil, "BORDER")
     s.well:SetAllPoints()
-    s.well:AddMaskTexture(innerMask)
+    Theme:Circle(s.well, inner, innerMask)
 
     s.fill = inner:CreateTexture(nil, "BORDER", nil, 1)
     s.fill:SetAllPoints()
-    s.fill:AddMaskTexture(innerMask)
+    Theme:Circle(s.fill, inner, innerMask)
+
+    -- The convicted player's own face, struck into the seal. On a guilty
+    -- verdict this screen is about one person, so the seal shows that person
+    -- rather than the addon's mark.
+    s.face = inner:CreateTexture(nil, "ARTWORK")
+    s.face:SetAllPoints()
+    Theme:Circle(s.face, inner, innerMask)
+    s.face:Hide()
 
     -- On `inner`, not on `s`: a child frame draws entirely above its parent
     -- regardless of draw layer, so a glyph on `s` would sit behind the well.
     s.glyph = inner:CreateTexture(nil, "OVERLAY")
     s.glyph:SetPoint("CENTER")
-    if not Theme:Art(s.glyph, "Emblem") then s.glyph:Hide() end
+    s.hasGlyph = Theme:Art(s.glyph, "Emblem")
+    if not s.hasGlyph then s.glyph:Hide() end
 
     function s:SetTone(color)
         self.ring:SetColorTexture(Theme:Color(color, 0.9))
@@ -118,6 +119,28 @@ local function BuildSeal(parent)
         self.well:SetColorTexture(Theme:Color("panel", 0.82))
         self.fill:SetColorTexture(Theme:Color(color, 0.14))
         self.glyph:SetVertexColor(Theme:Color(color == "crimson" and "gold" or color))
+    end
+
+    -- Put the accused's face in the seal. Returns what Theme:ResolvePortrait
+    -- managed, so the caller can retry a player who is out of range.
+    function s:SetAccused(unit, class)
+        local mode = Theme:ResolvePortrait(self.face, unit, class)
+        self.faceMode = mode
+        if mode == "none" then
+            self.face:Hide()
+            self.glyph:SetShown(self.hasGlyph)
+        else
+            self.face:Show()
+            self.glyph:Hide()
+        end
+        return mode
+    end
+
+    -- No verdict means nobody to show, so the mark comes back.
+    function s:SetEmblem()
+        self.faceMode = nil
+        self.face:Hide()
+        self.glyph:SetShown(self.hasGlyph)
     end
 
     function s:SetDiameter(d)
@@ -133,8 +156,10 @@ end
 function Verdict:Build()
     if self.frame then return self.frame end
 
+    -- Veiled for the same reason as the ballot: this window shows up on its
+    -- own the moment the ballot closes, and the run has not stopped for it.
     local f = Theme:Panel(UIParent, {
-        name = "TribunalVerdictFrame", width = 392, height = 424,
+        name = "TribunalVerdictFrame", width = 392, height = 424, chrome = "veil",
     })
     f:SetPoint("CENTER", UIParent, "CENTER", 0, 60)
     f:SetFrameStrata("DIALOG")
@@ -187,6 +212,18 @@ function Verdict:Build()
     self.detail = Theme:Label(stage, "", { size = 10, spacing = 1.8 })
     self.detail:SetPoint("TOP", self.nameFrame, "BOTTOM", 0, -6)
 
+    -- A plate under the written half of the stage only. The seal and its glow
+    -- keep the air around them -- that is the ceremony -- but the kicker and
+    -- the detail line are 10px tracked caps with nothing behind them, and they
+    -- are the two lines that say what actually happened. It hangs off the
+    -- kicker and the detail, so it follows the smaller stage a hung jury gets
+    -- without a second set of constants to keep in step.
+    self.stageScrim = Theme:Scrim(f, {})
+    self.stageScrim:SetPoint("LEFT", f, "LEFT", 0, 0)
+    self.stageScrim:SetPoint("RIGHT", f, "RIGHT", 0, 0)
+    self.stageScrim:SetPoint("TOP", self.kicker, "TOP", 0, 10)
+    self.stageScrim:SetPoint("BOTTOM", self.detail, "BOTTOM", 0, -10)
+
     self.divider = Theme:Divider(f, 200)
     self.divider:SetPoint("TOP", stage, "BOTTOM", 0, 0)
 
@@ -196,7 +233,20 @@ function Verdict:Build()
     self.list:SetPoint("TOPRIGHT", stage, "BOTTOMRIGHT", -PAD, -16)
     self.list:SetHeight(1)
 
+    -- The tally is five lines of 12px muted type with only a 3px bar under
+    -- each. Nothing in it can carry itself over bright ground, so the whole
+    -- block sits on one plate rather than five.
+    self.listScrim = Theme:Scrim(f, {})
+    self.listScrim:SetPoint("LEFT", f, "LEFT", 0, 0)
+    self.listScrim:SetPoint("RIGHT", f, "RIGHT", 0, 0)
+    self.listScrim:SetPoint("TOP", self.list, "TOP", 0, 8)
+    self.listScrim:SetPoint("BOTTOM", self.list, "BOTTOM", 0, -8)
+
     -- Footer ---------------------------------------------------------------
+    self.footScrim = Theme:Scrim(f, { height = 40 })
+    self.footScrim:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 8)
+    self.footScrim:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0, 8)
+
     local footLine = f:CreateTexture(nil, "ARTWORK")
     footLine:SetHeight(1)
     footLine:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 48)
@@ -317,6 +367,16 @@ function Verdict:Show(result, session)
     self.classChip:SetShown(guilty and cls ~= nil)
     if cls then self.classChip:SetColorTexture(Theme:ClassColor(cls)) end
 
+    -- The seal carries the convicted player's face. On any other outcome
+    -- there is nobody to show, so the mark comes back.
+    if guilty then
+        self.seal:SetAccused(T:UnitFor(result.winner), cls)
+        self:StartFaceWatch(result.winner, cls)
+    else
+        self.seal:SetEmblem()
+        self:StopFaceWatch()
+    end
+
     self.nameFrame:SetAlpha(0)
     self.nameFrame:SetScale(0.93)
 
@@ -361,6 +421,8 @@ function Verdict:Show(result, session)
         b.target = entry.count / maxCount
     end
     for i = shown + 1, #self.bars do self.bars[i]:Hide() end
+    -- A hung jury has no tally, and an empty plate is just a bar of shadow.
+    self.listScrim:SetShown(shown > 0)
 
     local listH = shown > 0 and (shown * BAR_H + (shown - 1) * BAR_GAP) or 0
     self.list:SetHeight(math.max(1, listH))
@@ -451,7 +513,38 @@ function Verdict:Show(result, session)
     end)
 end
 
+--------------------------------------------------------------------------------
+-- Face watch
+--------------------------------------------------------------------------------
+
+-- The convicted player is frequently a corpse somewhere else on the map when
+-- the verdict lands, and a portrait only exists for a unit the client can see.
+-- Retry for as long as the window is up so the face fills in the moment they
+-- come back into view.
+function Verdict:StartFaceWatch(full, class)
+    self:StopFaceWatch()
+    if self.seal.faceMode == "portrait" then return end
+
+    self.faceTicker = C_Timer.NewTicker(2, function()
+        if not Verdict.frame or not Verdict.frame:IsShown() then
+            Verdict:StopFaceWatch()
+            return
+        end
+        if Verdict.seal:SetAccused(T:UnitFor(full), class) == "portrait" then
+            Verdict:StopFaceWatch()
+        end
+    end, 9)
+end
+
+function Verdict:StopFaceWatch()
+    if self.faceTicker then
+        self.faceTicker:Cancel()
+        self.faceTicker = nil
+    end
+end
+
 function Verdict:Close()
+    self:StopFaceWatch()
     if self.autoClose then self.autoClose:Cancel(); self.autoClose = nil end
     if not self.frame or not self.frame:IsShown() then return end
     Anim:CancelAll(self.tweens)
