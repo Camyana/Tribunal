@@ -1,0 +1,7 @@
+# The packager runs on Linux. Normalise text to LF in the repository so the
+# TOC and Lua parse identically there and on Windows.
+* text=auto eol=lf
+
+*.tga binary
+*.ogg binary
+*.png binary

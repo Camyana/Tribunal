@@ -1,0 +1,18 @@
+package-as: Tribunal
+
+# No external libraries: everything the addon needs is in this repository.
+enable-nolib-creation: no
+
+# Development-only. Shipping the test harness and the art sources would roughly
+# quadruple the download for no player benefit.
+ignore:
+  - .github
+  - .gitignore
+  - .pkgmeta
+  - Art
+  - Tools
+  - DESIGN.md
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown

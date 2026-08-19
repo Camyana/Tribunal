@@ -1,0 +1,65 @@
+name: CI
+
+# Pull requests are tested only. Pushes to main are tested and then packaged
+# as an alpha on CurseForge. Tags are tested and released.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Compile and simulate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # lupa embeds a real Lua 5.1 runtime, which is what the game runs.
+      - name: Install the Lua runtime
+        run: pip install --quiet lupa
+
+      - name: Compile every Lua file
+        run: python Tools/luacheck.py
+
+      - name: Drive the addon against the WoW API mock
+        run: python Tools/runsim.py
+
+  package:
+    name: Package and upload
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The packager builds the changelog from history, so it needs all of it.
+          fetch-depth: 0
+
+      # A tag whose version does not match the TOC produces a release that
+      # reports the wrong version in game. Fail loudly instead.
+      - name: Check the tag matches the TOC version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          toc=$(sed -n 's/^## Version:[[:space:]]*//p' Tribunal.toc | tr -d '\r')
+          tag="${GITHUB_REF_NAME#v}"
+          echo "TOC version: '$toc'   tag: '$tag'"
+          if [ "$toc" != "$tag" ]; then
+            echo "::error::Tribunal.toc says $toc but the tag is $tag. Bump the TOC and re-tag."
+            exit 1
+          fi
+
+      - name: Package and upload
+        uses: BigWigsMods/packager@v2.5.1
+        env:
+          # Set in the repository's Actions secrets. Never commit these.
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}

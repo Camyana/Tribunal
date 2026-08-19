@@ -1,0 +1,27 @@
+## Interface: 120100, 120007
+## Title: Tribunal
+## Notes: The Mythic+ Wipe Court. Call a vote, render a verdict, keep the docket.
+## Author: Cam
+## Version: 1.0.0
+## SavedVariables: TribunalDB
+## IconTexture: Interface\AddOns\Tribunal\Media\Textures\MinimapIcon
+## Category-enUS: Group Tools
+## AddonCompartmentFunc: Tribunal_OnCompartmentClick
+## X-Website: https://github.com/Camyana/Tribunal
+## X-License: MIT
+
+# Uncomment and fill in once the CurseForge project exists. Without it the
+# pipeline still builds and publishes a GitHub release; it just skips the
+# CurseForge upload.
+# ## X-Curse-Project-ID: 000000
+
+Core.lua
+Modules\Anim.lua
+Modules\Theme.lua
+Modules\Comm.lua
+Modules\Session.lua
+Modules\Ballot.lua
+Modules\Verdict.lua
+Modules\Board.lua
+Modules\Minimap.lua
+Modules\Config.lua
