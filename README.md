@@ -1,3 +1,8 @@
+![Tribunal](Art/brand/header.png)
+
+[![CI](https://github.com/Camyana/Tribunal/actions/workflows/ci.yml/badge.svg)](https://github.com/Camyana/Tribunal/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-E8B23A.svg)](LICENSE)
+
 # Tribunal
 
 **The Mythic+ Wipe Court.**
@@ -131,6 +136,26 @@ mark, and so on. Setting `Theme.useArt = false` runs the whole UI on those
 fallbacks, which is useful for seeing how much of the design is carried by
 geometry rather than by art. It is not a missing-file guard: WoW reports
 nothing when a texture fails to load.
+
+## Releasing
+
+Pushing to `main` builds an alpha and uploads it to CurseForge. Tagging builds
+a release:
+
+```bash
+git tag -a v1.0.1 -m "1.0.1" && git push origin v1.0.1
+```
+
+The workflow fails the build if the tag and `## Version` in `Tribunal.toc`
+disagree, so bump the TOC in the same commit you tag.
+
+Uploads need two things set up once:
+
+- `CF_API_KEY` in the repository's Actions secrets
+- `## X-Curse-Project-ID` in `Tribunal.toc`, from the CurseForge project page
+
+Without the project ID the pipeline still runs and still builds the zip — it
+just skips the CurseForge upload.
 
 ## Licence
 
