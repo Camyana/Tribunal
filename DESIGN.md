@@ -75,23 +75,23 @@ so the game can wait behind them.
 
 **Veil** is for the two windows nobody asked for — the ballot and the verdict.
 They open on their own while people are still running back, and a slab dropped
-over a fifth of the screen at that moment is rude. So the container goes and
-the content stays: the panel fill and its grain drop to about half coverage,
-the top and bottom ends run out to nothing over 12px, and the border box
-becomes four corner ticks. What is left of the opacity is spent only where
-something has to be read — ballot rows keep 90% of their backing, and every
-other block of type (the title block, the question, the verdict's name, its
-tally, both footers) sits on a `void` plate whose ends fade out, so it never
-reads as a second box inside the first. The window becomes a set of plates held
-in place by hairlines rather than a box with things in it.
+over a fifth of the screen at that moment is rude. So these windows have **no
+background at all**. Not a faint one — none. What draws is the type, the
+portraits, the hairlines, the corner ticks and the marks, held over whatever
+the game is showing. There is no panel fill, no grain, no row backing and no
+plate under any block of text.
 
-Over a dungeon interior the two surfaces are indistinguishable — 14.0:1 against
-14.4:1 for primary type. The veil only costs anything outdoors, which is where
-it is worth it.
+That means depth stops coming from a surface, because there isn't one. It comes
+instead from the type's own counter-edge, which is why the shade does not scale
+with the setting: at zero backing it is the only thing standing between a 10px
+tracked cap and a snowfield.
 
-`TribunalDB.settings.opacity` scales every veil alpha. The veil is drawn at
-0.75, so the setting reads as a straight percentage of the intended look: 1.0
-is the densest it goes, 0.4 is barely more than the type itself.
+`TribunalDB.settings.opacity` scales every backing alpha together and is **0 by
+default**. Anyone who plays somewhere bright enough to want a surface can dial
+one in; at 1.0 the windows carry a full panel fill, grain, row backing and
+plates, and the relationship between them is the same as it ever was — a row is
+content and stays denser than the container it sits in. `edge` and `shade` are
+structure rather than background and never scale away.
 
 **The one shadow.** Veiled type carries a 1px hard black shadow at 0.85, no
 blur. This is not the drop shadow banned below: that one is a fake light source

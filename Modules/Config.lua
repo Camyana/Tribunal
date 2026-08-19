@@ -131,12 +131,13 @@ function Config:Build()
         end,
     }), 8)
 
-    self.opacity = place(Theme:Slider(body, "Ballot and verdict opacity", {
-        min = 0.4, max = 1, step = 0.05,
-        hint = "The ballot and the verdict open on their own mid-run, so they "
-            .. "are see-through and hold their elements over the game. Turn "
-            .. "this up if you play somewhere very bright. The docket and this "
-            .. "window are always solid.",
+    self.opacity = place(Theme:Slider(body, "Ballot and verdict backing", {
+        min = 0, max = 1, step = 0.05,
+        hint = "The ballot and the verdict open on their own mid-run, so by "
+            .. "default they have no background at all - just their contents "
+            .. "over the game. Raise this if you play somewhere bright enough "
+            .. "to need a surface behind them. The docket and this window are "
+            .. "always solid.",
         format = function(v) return ("%d%%"):format(math.floor(v * 100 + 0.5)) end,
         onChange = function(v)
             S.opacity = v

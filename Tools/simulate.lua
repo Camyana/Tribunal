@@ -648,9 +648,19 @@ check("and a solid window's contents stay solid",
       T.Theme:ChromeOf(T.Config.scroll.content) == "solid")
 
 local ballotFill, rowAlpha = fillAlpha(T.Ballot.frame), fillAlpha(T.Ballot.rows[1])
-check("the container all but disappears", ballotFill and ballotFill < 0.35, ballotFill)
-check("the rows keep their backing", rowAlpha and rowAlpha > 0.85, rowAlpha)
-check("content is much denser than its container", rowAlpha - ballotFill > 0.5,
+check("the container draws nothing at all", ballotFill == 0, ballotFill)
+check("and neither do the rows", rowAlpha == 0, rowAlpha)
+
+-- Dialled up, the old relationship has to reappear: a row is content and
+-- carries more than the container it sits in.
+TribunalDB.settings.opacity = 1
+T.Theme:RefreshVeil()
+check("dialled up, rows are denser than their container",
+      fillAlpha(T.Ballot.rows[1]) - fillAlpha(T.Ballot.frame) > 0.5,
+      ("%.3f vs %.3f"):format(fillAlpha(T.Ballot.rows[1]), fillAlpha(T.Ballot.frame)))
+TribunalDB.settings.opacity = 0
+T.Theme:RefreshVeil()
+check("back to nothing when dialled down", fillAlpha(T.Ballot.frame) == 0,
       rowAlpha - ballotFill)
 check("the docket's surface is untouched", fillAlpha(T.Board.frame) == 1,
       fillAlpha(T.Board.frame))
@@ -689,7 +699,7 @@ mock.Advance(1)
 
 -- The slider.
 local SET = TribunalDB.settings
-check("opacity defaults to the value the veil was drawn at", SET.opacity == 0.75,
+check("backing defaults to none", SET.opacity == 0,
       SET.opacity)
 
 SET.opacity = 1.0
@@ -705,10 +715,14 @@ check("the rows follow the slider too", fillAlpha(T.Ballot.rows[1]) < 0.6,
       fillAlpha(T.Ballot.rows[1]))
 
 SET.opacity = nil
-check("a missing setting falls back to the drawn value",
-      math.abs(T.Theme:VeilAlpha("fill") - T.Theme.VEIL.fill) < 0.001,
+check("a missing setting means no backing", T.Theme:VeilAlpha("fill") == 0,
       T.Theme:VeilAlpha("fill"))
 SET.opacity = 5
+check("the shade never scales away with the backing",
+      T.Theme:VeilAlpha("shade") == T.Theme.VEIL_FIXED.shade,
+      T.Theme:VeilAlpha("shade"))
+check("nor do the corner ticks",
+      T.Theme:VeilAlpha("edge") == T.Theme.VEIL_FIXED.edge)
 check("a nonsense setting is clamped", T.Theme:VeilAlpha("fill") < 0.36,
       T.Theme:VeilAlpha("fill"))
 SET.opacity = 0.75

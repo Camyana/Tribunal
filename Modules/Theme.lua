@@ -83,33 +83,41 @@ Theme.FONT = {
 --
 -- `veil` is for the two that arrive on their own in the middle of a pull -- the
 -- ballot and the verdict. Those have to sit *in* the game rather than on top of
--- it, so the container all but disappears and only the blocks of type keep a
--- backing. It is still depth from value, exactly as DESIGN.md asks; there is
--- simply less of it, and what remains is spent on what has to be read.
+-- it, so by default they draw no background at all: what you see is the type,
+-- the portraits, the hairlines and the marks, held over whatever is behind
+-- them. Depth stops coming from a surface and starts coming from the type's
+-- own counter-edge, which is why `shade` does not scale away.
 --
--- The veil is drawn at 75%, so TribunalDB.settings.opacity reads as a plain
--- percentage of the intended look: 100% is as dense as the veil ever gets and
--- 40% is barely more than the type itself.
-local VEIL_REF = 0.75
-
+-- Every backing alpha a veiled window can draw, at 100%. The setting scales
+-- all of them together, and it defaults to zero: the ballot and the verdict
+-- carry no background whatsoever, only their contents. Anyone who plays
+-- somewhere bright enough to need a surface can dial one back in.
 Theme.VEIL = {
-    fill  = 0.26,   -- flat panel colour across the body
-    grain = 0.40,   -- the tile is opaque, so its alpha *is* the surface
+    fill  = 0.35,   -- flat panel colour across the body
+    grain = 0.55,   -- the tile is opaque, so its alpha *is* the surface
+    row   = 0.95,   -- a row's own backing
+    scrim = 0.45,   -- local plate under a block of type
+}
+
+-- Structure rather than background, so these do not scale away with the
+-- setting. At zero backing they are the only things holding the window
+-- together, and the shade is the only thing keeping 10px caps readable.
+Theme.VEIL_FIXED = {
     fade  = 12,     -- px over which the top and bottom ends run to nothing
     edge  = 0.85,   -- corner ticks
-    row   = 0.90,   -- a row is content, so it keeps its backing
-    scrim = 0.32,   -- local backing under a block of type
-    shade = 0.85,   -- see Theme:Text
+    shade = 0.95,   -- see Theme:Text
 }
 
 function Theme:Opacity()
     local s = TribunalDB and TribunalDB.settings
     local k = s and s.opacity
-    if type(k) ~= "number" then k = VEIL_REF end
-    return math.max(0.4, math.min(1, k)) / VEIL_REF
+    if type(k) ~= "number" then k = 0 end
+    return math.max(0, math.min(1, k))
 end
 
 function Theme:VeilAlpha(key)
+    local fixed = self.VEIL_FIXED[key]
+    if fixed then return fixed end
     return math.min(1, (self.VEIL[key] or 1) * self:Opacity())
 end
 
@@ -206,8 +214,8 @@ end
 -- 10px tracked caps have to survive a snowfield -- and it is off entirely on
 -- the solid windows, where value alone still does the work.
 local function ShadeFor(parent, opts)
-    if opts.shade ~= nil then return opts.shade and Theme.VEIL.shade or 0 end
-    return Theme:ChromeOf(parent) == "veil" and Theme.VEIL.shade or 0
+    if opts.shade ~= nil then return opts.shade and Theme:VeilAlpha("shade") or 0 end
+    return Theme:ChromeOf(parent) == "veil" and Theme:VeilAlpha("shade") or 0
 end
 
 local function ApplyShade(fs, shade)
@@ -420,7 +428,7 @@ function Theme:Panel(parent, opts)
     f:SetSize(opts.width or 380, opts.height or 240)
     f.tribunalChrome = veil and "veil" or "solid"
 
-    local fade = self.VEIL.fade
+    local fade = self:VeilAlpha("fade")
     local pr, pg, pb = self:Color(opts.color or "panel")
 
     if veil then

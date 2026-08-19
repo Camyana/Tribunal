@@ -40,10 +40,11 @@ local DEFAULTS = {
         announceVerdict = false,  -- post the verdict to party chat
         portraits       = true,   -- show unit portraits on the ballot
         scale           = 1.0,
-        -- How solid the two windows that appear on their own are. The veil is
-        -- drawn at 0.75, so this reads as a straight percentage of the
-        -- intended look: 1.0 is the densest it goes, 0.4 nearly bare.
-        opacity         = 0.75,
+        -- How much backing the two windows that appear on their own carry.
+        -- Zero by default: they hold their contents over the game and draw no
+        -- background whatsoever. 1.0 is a full surface for anyone who plays
+        -- somewhere bright enough to need one.
+        opacity         = 0,
     },
     minimap = { angle = 214, hide = false },
     ui      = {},   -- remembered frame positions, keyed by window
