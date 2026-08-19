@@ -705,18 +705,14 @@ check("and a solid window's contents stay solid",
 
 check("a veiled window builds no surface texture at all",
       T.Ballot.frame.bg == nil and T.Verdict.frame.bg == nil)
-check("nor do its rows", T.Ballot.rows[1].bg == nil)
 
 local ballotFill, rowAlpha = fillAlpha(T.Ballot.frame), fillAlpha(T.Ballot.rows[1])
 check("the container draws nothing at all", ballotFill == 0, ballotFill)
--- Nothing is boxed. A player's solid element is their portrait disc, which is
--- a texture and always draws; the rectangle behind the row is a container and
--- goes with every other container.
-check("and neither do the rows", rowAlpha == 0, rowAlpha)
-check("the portrait is the solid element instead",
-      T.Ballot.rows[1].portrait:IsShown() == true)
-check("an idle row shows no mark at all",
-      T.Ballot.rows[1].accent:GetAlpha() == 0, T.Ballot.rows[1].accent:GetAlpha())
+-- The container goes; the players do not. A row is a player, and a player is
+-- a solid element that floats on the game rather than sitting in a box.
+check("but the rows are solid", rowAlpha == 1, rowAlpha)
+check("solid on the veiled window and the solid one alike",
+      fillAlpha(T.Board.rows[1]) == 1, fillAlpha(T.Board.rows[1]))
 
 -- Dialled up, the old relationship has to reappear: a row is content and
 -- carries more than the container it sits in.

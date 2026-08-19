@@ -77,19 +77,23 @@ so the game can wait behind them.
 They open on their own while people are still running back, and a slab dropped
 over a fifth of the screen at that moment is rude. So these windows **build no
 surface at all**. Not a faint one, not one at zero alpha: no fill, no grain, no
-end caps, no border, no corner ticks, no plate under any block of type, and no
-rectangle behind a row. There is no setting that can bring one back, because
-there is nothing to bring back.
+end caps, no border, no corner ticks and no plate under any block of type.
+There is no setting that can bring one back, because there is nothing to bring
+back.
+
+The rows are the exception, and the exception is the point. A row is a player,
+and a player is a **solid element**. The container around the list goes; the
+players in it stay solid, on every surface. What floats on the game is a column
+of solid things, not a box with names in it.
 
 Anything that merely faded to zero could be resurrected by a stored value, and
 was — a shipped build kept drawing its surface for everyone who already had the
 old default written to disk. Absence is the only reliable kind of gone.
 
-What draws instead is the content: the type, the portraits, the hairlines and
-the marks. A player's solid element is their portrait, which is a disc, not a
-box. With no rectangle to light up, hover and selection live on the name and on
-the portrait's ring, and a row's mark appears only where there is state — an
-idle tick on every row is a column of clutter, not information.
+Everything else is content: the type, the portraits, the hairlines and the
+marks. Hover and selection are carried by the row's own backing and its left
+mark, exactly as on a solid window — that vocabulary did not need replacing,
+only the container around it did.
 
 The docket and the settings window keep the solid slab. You opened those.
 

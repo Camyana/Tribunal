@@ -376,18 +376,6 @@ function Theme:Header(parent, title, subtitle, opts)
         return h
     end
 
-    -- The subtitle is 10px muted type, which is the single least survivable
-    -- thing on either veiled window: on bare veil over a snowfield it lands at
-    -- 1.5:1. So the title block gets the same plate every other block of type
-    -- gets. It hangs off the panel rather than the header so it stays below
-    -- the header's own layers, and stops 8px short of the top so the panel's
-    -- end still dissolves.
-    if parent and self:ChromeOf(parent) == "veil" then
-        h.scrim = self:Scrim(parent, {})
-        h.scrim:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -8)
-        h.scrim:SetPoint("BOTTOMRIGHT", parent, "TOPRIGHT", 0, -(opts.height or 56))
-    end
-
     local emblem = h:CreateTexture(nil, "ARTWORK")
     emblem:SetSize(20, 20)
     emblem:SetPoint("TOPLEFT", 16, -14)
@@ -546,13 +534,11 @@ function Theme:Row(parent, opts)
     local r = CreateFrame("Button", nil, parent)
     r:SetHeight(opts.height or 34)
 
-    -- Under the veil the container is what goes; a row is content, so it keeps
-    -- nearly all of its backing. That inversion is the whole idea: a set of
-    -- floating plates held by hairlines rather than a box with things in it.
-    -- A row on a veiled window has no rectangle. The player's solid element
-    -- is their portrait; this is just a hit area with type in it.
-    r.veiled = self:ChromeOf(parent) == "veil"
-    if not r.veiled then r.bg = self:Fill(r, "raised", 1) end
+    -- A row is a player, and a player is solid. The container around the list
+    -- is what goes; the rows themselves keep a real backing on every surface.
+    -- That inversion is the whole idea: a column of solid elements floating on
+    -- the game rather than a box with names in it.
+    r.bg = self:Fill(r, "raised", 1)
 
     r.accent = r:CreateTexture(nil, "ARTWORK")
     r.accent:SetWidth(2)
@@ -565,13 +551,7 @@ function Theme:Row(parent, opts)
 
     function r:Highlight(on)
         self.accent:SetColorTexture(Theme:Color(on and self.accentColor or "hairline"))
-        if self.bg then
-            self.bg:SetColorTexture(Theme:Color(on and "raisedHi" or "raised"))
-        else
-            -- Floating: with no rectangle, an idle mark on every row is a
-            -- column of clutter. It appears only where there is state.
-            self.accent:SetAlpha((on or self.selected) and 1 or 0)
-        end
+        self.bg:SetColorTexture(Theme:Color(on and "raisedHi" or "raised"))
     end
 
 
