@@ -172,8 +172,8 @@ function Verdict:Build()
 
     -- Stage ----------------------------------------------------------------
     local stage = CreateFrame("Frame", nil, f)
-    stage:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -56)
-    stage:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, -56)
+    stage:SetPoint("TOPLEFT", self.header, "BOTTOMLEFT", 0, 0)
+    stage:SetPoint("TOPRIGHT", self.header, "BOTTOMRIGHT", 0, 0)
     stage:SetHeight(STAGE_GUILTY)
     self.stage = stage
 
@@ -426,7 +426,8 @@ function Verdict:Show(result, session)
 
     local listH = shown > 0 and (shown * BAR_H + (shown - 1) * BAR_GAP) or 0
     self.list:SetHeight(math.max(1, listH))
-    f:SetHeight(56 + stageH + (shown > 0 and (16 + listH) or 0) + 16 + 48)
+    f:SetHeight(self.header:GetHeight() + stageH
+        + (shown > 0 and (16 + listH) or 0) + 16 + 48)
 
     self.footNote:SetText((session and session.label or ""):upper())
 

@@ -84,7 +84,7 @@ function Ballot:Build()
     self.questionScrim:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, -56)
 
     local question = Theme:Label(f, "Who wiped us?", { size = 11, spacing = 2.2, color = "text" })
-    question:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, -72)
+    question:SetPoint("TOPLEFT", self.header, "BOTTOMLEFT", PAD, -16)
     self.question = question
 
     -- The countdown is the number and nothing else. A cooldown swipe would be
@@ -92,12 +92,12 @@ function Ballot:Build()
     -- apply to the swipe, so it drew as a blocky wedge.
     self.clock = Theme:Text(f, 20, { color = "gold", justify = "RIGHT",
         font = Theme.FONT.narrow })
-    self.clock:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PAD, -68)
+    self.clock:SetPoint("TOPRIGHT", self.header, "BOTTOMRIGHT", -PAD, -12)
 
     -- Rows ----------------------------------------------------------------
     self.list = CreateFrame("Frame", nil, f)
-    self.list:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -96)
-    self.list:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, -96)
+    self.list:SetPoint("TOPLEFT", self.header, "BOTTOMLEFT", 0, -40)
+    self.list:SetPoint("TOPRIGHT", self.header, "BOTTOMRIGHT", 0, -40)
     self.list:SetHeight(1)
 
     -- Footer --------------------------------------------------------------
@@ -180,7 +180,7 @@ function Ballot:Open(session)
     local n = #session.candidates
     local listH = n * rowH + math.max(0, n - 1) * ROW_GAP
     self.list:SetHeight(listH)
-    f:SetHeight(96 + listH + 16 + 48)
+    f:SetHeight(self.header:GetHeight() + 40 + listH + 16 + 48)
 
     -- Lay out and stagger the rows in.
     for i, cand in ipairs(session.candidates) do

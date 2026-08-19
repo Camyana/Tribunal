@@ -95,7 +95,6 @@ Theme.FONT = {
 Theme.VEIL = {
     fill  = 0.35,   -- flat panel colour across the body
     grain = 0.55,   -- the tile is opaque, so its alpha *is* the surface
-    row   = 0.95,   -- a row's own backing
     scrim = 0.45,   -- local plate under a block of type
 }
 
@@ -104,8 +103,10 @@ Theme.VEIL = {
 -- together, and the shade is the only thing keeping 10px caps readable.
 Theme.VEIL_FIXED = {
     fade  = 12,     -- px over which the top and bottom ends run to nothing
-    edge  = 0.85,   -- corner ticks
+    edge  = 0,      -- no corner ticks: they are chrome, and chrome is what goes
     shade = 0.95,   -- see Theme:Text
+    row   = 1,      -- a row is a player. Players are solid, always.
+    header = 32,    -- a bare strip: somewhere to grab and somewhere to close
 }
 
 function Theme:Opacity()
@@ -513,10 +514,22 @@ end
 -- a gold hairline that fades out toward both ends.
 function Theme:Header(parent, title, subtitle, opts)
     opts = opts or {}
+    local bare = parent and self:ChromeOf(parent) == "veil"
+
     local h = CreateFrame("Frame", nil, parent)
     h:SetPoint("TOPLEFT")
     h:SetPoint("TOPRIGHT")
-    h:SetHeight(opts.height or 56)
+    h:SetHeight(opts.height or (bare and self.VEIL_FIXED.header or 56))
+    h.bare = bare
+
+    -- A bare header draws nothing. It exists so the window can still be
+    -- dragged and closed, and so callers can anchor beneath it without caring
+    -- which surface they are on.
+    if bare then
+        function h:SetSubtitle() end
+        function h:Strike() end
+        return h
+    end
 
     -- The subtitle is 10px muted type, which is the single least survivable
     -- thing on either veiled window: on bare veil over a snowfield it lands at

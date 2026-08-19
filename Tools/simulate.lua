@@ -568,9 +568,19 @@ check("ballot footer labels cannot meet",
       <= BALLOT_W - PAD * 2 - GUTTER)
 T.Session:Abort(nil, true)
 
--- And a header subtitle long enough to reach the close button.
-T.Ballot.header:SetSubtitle("Trial in session - Operation: Mechagon - Workshop +24")
-fits(T.Ballot.header.subtitle, BALLOT_W - 44 - 44, "ballot header subtitle")
+-- A header subtitle long enough to reach the close button. The ballot's header
+-- is bare now, so the docket is where a subtitle still renders.
+T.Board:Show()
+mock.Advance(1)
+T.Board.header:SetSubtitle("The docket - Operation: Mechagon - Workshop +24")
+fits(T.Board.header.subtitle, BOARD_W - 44 - 44, "docket header subtitle")
+T.Board:Close()
+mock.Advance(1)
+
+check("a veiled window's header draws nothing",
+      T.Ballot.header.bare == true and T.Ballot.header.subtitle == nil)
+check("but can still be dragged and closed",
+      T.Ballot.header:GetHeight() > 0 and T.Ballot.closeButton ~= nil)
 
 --------------------------------------------------------------------------------
 -- The close button on every window
@@ -649,7 +659,9 @@ check("and a solid window's contents stay solid",
 
 local ballotFill, rowAlpha = fillAlpha(T.Ballot.frame), fillAlpha(T.Ballot.rows[1])
 check("the container draws nothing at all", ballotFill == 0, ballotFill)
-check("and neither do the rows", rowAlpha == 0, rowAlpha)
+-- A row is a player, and the players are what you are choosing between, so
+-- they are solid at every setting. Only the surface behind them is optional.
+check("but the rows stay solid", rowAlpha == 1, rowAlpha)
 
 -- Dialled up, the old relationship has to reappear: a row is content and
 -- carries more than the container it sits in.
@@ -711,8 +723,8 @@ local thin = fillAlpha(T.Ballot.frame)
 check("the slider repaints a window that is already open", dense > thin,
       ("%.3f vs %.3f"):format(dense, thin))
 check("100% is the densest the veil ever goes", dense < 0.36, dense)
-check("the rows follow the slider too", fillAlpha(T.Ballot.rows[1]) < 0.6,
-      fillAlpha(T.Ballot.rows[1]))
+check("and stay solid whatever the slider says",
+      fillAlpha(T.Ballot.rows[1]) == 1, fillAlpha(T.Ballot.rows[1]))
 
 SET.opacity = nil
 check("a missing setting means no backing", T.Theme:VeilAlpha("fill") == 0,
