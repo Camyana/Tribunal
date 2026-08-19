@@ -218,11 +218,6 @@ function Verdict:Build()
     -- are the two lines that say what actually happened. It hangs off the
     -- kicker and the detail, so it follows the smaller stage a hung jury gets
     -- without a second set of constants to keep in step.
-    self.stageScrim = Theme:Scrim(f, {})
-    self.stageScrim:SetPoint("LEFT", f, "LEFT", 0, 0)
-    self.stageScrim:SetPoint("RIGHT", f, "RIGHT", 0, 0)
-    self.stageScrim:SetPoint("TOP", self.kicker, "TOP", 0, 10)
-    self.stageScrim:SetPoint("BOTTOM", self.detail, "BOTTOM", 0, -10)
 
     self.divider = Theme:Divider(f, 200)
     self.divider:SetPoint("TOP", stage, "BOTTOM", 0, 0)
@@ -236,16 +231,8 @@ function Verdict:Build()
     -- The tally is five lines of 12px muted type with only a 3px bar under
     -- each. Nothing in it can carry itself over bright ground, so the whole
     -- block sits on one plate rather than five.
-    self.listScrim = Theme:Scrim(f, {})
-    self.listScrim:SetPoint("LEFT", f, "LEFT", 0, 0)
-    self.listScrim:SetPoint("RIGHT", f, "RIGHT", 0, 0)
-    self.listScrim:SetPoint("TOP", self.list, "TOP", 0, 8)
-    self.listScrim:SetPoint("BOTTOM", self.list, "BOTTOM", 0, -8)
 
     -- Footer ---------------------------------------------------------------
-    self.footScrim = Theme:Scrim(f, { height = 40 })
-    self.footScrim:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 8)
-    self.footScrim:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0, 8)
 
     local footLine = f:CreateTexture(nil, "ARTWORK")
     footLine:SetHeight(1)
@@ -422,7 +409,6 @@ function Verdict:Show(result, session)
     end
     for i = shown + 1, #self.bars do self.bars[i]:Hide() end
     -- A hung jury has no tally, and an empty plate is just a bar of shadow.
-    self.listScrim:SetShown(shown > 0)
 
     local listH = shown > 0 and (shown * BAR_H + (shown - 1) * BAR_GAP) or 0
     self.list:SetHeight(math.max(1, listH))

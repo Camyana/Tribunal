@@ -75,23 +75,23 @@ so the game can wait behind them.
 
 **Veil** is for the two windows nobody asked for — the ballot and the verdict.
 They open on their own while people are still running back, and a slab dropped
-over a fifth of the screen at that moment is rude. So these windows have **no
-background at all**. Not a faint one — none. What draws is the type, the
-portraits, the hairlines, the corner ticks and the marks, held over whatever
-the game is showing. There is no panel fill, no grain, no row backing and no
-plate under any block of text.
+over a fifth of the screen at that moment is rude. So these windows **build no
+surface at all**. Not a faint one, not one at zero alpha: no fill, no grain, no
+end caps, no border, no corner ticks, no plate under any block of type, and no
+rectangle behind a row. There is no setting that can bring one back, because
+there is nothing to bring back.
 
-That means depth stops coming from a surface, because there isn't one. It comes
-instead from the type's own counter-edge, which is why the shade does not scale
-with the setting: at zero backing it is the only thing standing between a 10px
-tracked cap and a snowfield.
+Anything that merely faded to zero could be resurrected by a stored value, and
+was — a shipped build kept drawing its surface for everyone who already had the
+old default written to disk. Absence is the only reliable kind of gone.
 
-`TribunalDB.settings.opacity` scales every backing alpha together and is **0 by
-default**. Anyone who plays somewhere bright enough to want a surface can dial
-one in; at 1.0 the windows carry a full panel fill, grain, row backing and
-plates, and the relationship between them is the same as it ever was — a row is
-content and stays denser than the container it sits in. `edge` and `shade` are
-structure rather than background and never scale away.
+What draws instead is the content: the type, the portraits, the hairlines and
+the marks. A player's solid element is their portrait, which is a disc, not a
+box. With no rectangle to light up, hover and selection live on the name and on
+the portrait's ring, and a row's mark appears only where there is state — an
+idle tick on every row is a column of clutter, not information.
+
+The docket and the settings window keep the solid slab. You opened those.
 
 **The one shadow.** Veiled type carries a 1px hard black shadow at 0.85, no
 blur. This is not the drop shadow banned below: that one is a fake light source

@@ -131,20 +131,6 @@ function Config:Build()
         end,
     }), 8)
 
-    self.opacity = place(Theme:Slider(body, "Ballot and verdict backing", {
-        min = 0, max = 1, step = 0.05,
-        hint = "The ballot and the verdict open on their own mid-run, so by "
-            .. "default they have no background at all - just their contents "
-            .. "over the game. Raise this if you play somewhere bright enough "
-            .. "to need a surface behind them. The docket and this window are "
-            .. "always solid.",
-        format = function(v) return ("%d%%"):format(math.floor(v * 100 + 0.5)) end,
-        onChange = function(v)
-            S.opacity = v
-            Theme:RefreshVeil()
-        end,
-    }), 8)
-
     self.portraits = place(Theme:Check(body, "Portraits on the ballot", {
         hint = "Show each player's portrait instead of a class colour chip. "
             .. "Anyone out of range falls back to their class icon until they "
@@ -236,7 +222,6 @@ function Config:Refresh()
     self.duration:SetValue(S.voteDuration)
     self.cooldown:SetValue(S.voteCooldown)
     self.scale:SetValue(S.scale)
-    self.opacity:SetValue(S.opacity)
 
     self.anonymous:SetChecked(S.anonymous, true)
     self.selfVote:SetChecked(S.selfVoteAllowed, true)

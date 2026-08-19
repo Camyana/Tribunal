@@ -44,7 +44,6 @@ local DEFAULTS = {
         -- Zero by default: they hold their contents over the game and draw no
         -- background whatsoever. 1.0 is a full surface for anyone who plays
         -- somewhere bright enough to need one.
-        opacity         = 0,
     },
     minimap = { angle = 214, hide = false },
     ui      = {},   -- remembered frame positions, keyed by window
@@ -75,8 +74,10 @@ local function Migrate(db, from)
     -- v2: the ballot and the verdict stopped drawing a surface. Anyone still
     -- carrying the old default was carrying one they never chose, so move them
     -- to the new default. A value they picked themselves is left alone.
-    if from < 2 and db.settings and db.settings.opacity == 0.75 then
-        db.settings.opacity = 0
+    -- v2: the ballot and the verdict stopped drawing a surface at all, so the
+    -- setting that scaled one has nothing left to scale.
+    if from < 2 and db.settings then
+        db.settings.opacity = nil
     end
 
     db.version = DEFAULTS.version
@@ -366,8 +367,7 @@ SlashCmdList.TRIBUNAL = function(input)
         -- The circular mask is the single point of failure for every disc in
         -- the addon: a mask texture that fails to load masks everything away
         -- rather than nothing, so one bad path erases them all at once.
-        print(("  backing: |cffE8B23A%.2f|r   db version: |cffE8B23A%s|r")
-            :format(T.Theme:Opacity(), tostring(TribunalDB.version)))
+        print(("  db version: |cffE8B23A%s|r"):format(tostring(TribunalDB.version)))
         print(("  circle mask in use: |cffE8B23A%s|r")
             :format(tostring(T.Theme:MaskPath() or "NONE - discs will be square")))
         local emblem = UIParent:CreateTexture()

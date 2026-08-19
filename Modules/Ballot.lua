@@ -91,14 +91,6 @@ function Ballot:Build()
     Theme:MakeCloseable(f, "TribunalBallotFrame")
 
     -- Question line -------------------------------------------------------
-    -- The rows carry their own backing; the question and the countdown do not,
-    -- so they get a plate of their own. It runs from the header rule to the
-    -- first row, which means both of its edges land on something already
-    -- drawn there and it never reads as a band of its own.
-    self.questionScrim = Theme:Scrim(f, { height = 40 })
-    self.questionScrim:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -56)
-    self.questionScrim:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, -56)
-
     local question = Theme:Label(f, "Who wiped us?", { size = 11, spacing = 2.2, color = "text" })
     question:SetPoint("TOPLEFT", self.header, "BOTTOMLEFT", PAD, -16)
     self.question = question
@@ -117,12 +109,6 @@ function Ballot:Build()
     self.list:SetHeight(1)
 
     -- Footer --------------------------------------------------------------
-    -- Same plate under the footer, stopping 8px short of the bottom so the
-    -- panel's own end still dissolves below it.
-    self.footScrim = Theme:Scrim(f, { height = 40 })
-    self.footScrim:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 8)
-    self.footScrim:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0, 8)
-
     local footLine = f:CreateTexture(nil, "ARTWORK")
     footLine:SetHeight(1)
     footLine:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 48)
@@ -452,9 +438,6 @@ function Ballot:BuildPrompt()
 
     -- The toast is 96px tall and every line in it matters, so the plate runs
     -- the whole body rather than banding it.
-    p.scrim = Theme:Scrim(p, {})
-    p.scrim:SetPoint("TOPLEFT", p, "TOPLEFT", 0, -8)
-    p.scrim:SetPoint("BOTTOMRIGHT", p, "BOTTOMRIGHT", 0, 8)
 
     local accent = p:CreateTexture(nil, "ARTWORK")
     accent:SetWidth(2)

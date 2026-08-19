@@ -392,21 +392,22 @@ end
 local keep = _G.TribunalDB
 
 local old = loadWith({ version = 1, settings = { opacity = 0.75 } })
-check("the old default is migrated away", old.settings.opacity == 0,
-      old.settings.opacity)
+check("the stale setting is cleared out", old.settings.opacity == nil,
+      tostring(old.settings.opacity))
 check("and the version moves on", old.version == 2, old.version)
 
 local chosen = loadWith({ version = 1, settings = { opacity = 0.55 } })
-check("a value the player chose is left alone", chosen.settings.opacity == 0.55,
-      chosen.settings.opacity)
+check("any stored value is cleared, not just the old default",
+      chosen.settings.opacity == nil, tostring(chosen.settings.opacity))
 
 local fresh = loadWith(nil)
-check("a fresh install starts with no backing", fresh.settings.opacity == 0,
-      fresh.settings.opacity)
+check("a fresh install has no such setting", fresh.settings.opacity == nil,
+      tostring(fresh.settings.opacity))
 
 local current = loadWith({ version = 2, settings = { opacity = 0.75 } })
 check("an already-migrated database is not touched again",
       current.settings.opacity == 0.75, current.settings.opacity)
+check("and the version stays put", current.version == 2, current.version)
 
 _G.TribunalDB = keep
 
@@ -669,9 +670,13 @@ check("verdict: auto-close timer cancelled", T.Verdict.autoClose == nil)
 
 section("Chrome")
 
+-- A veiled window has no bg texture whatsoever, so absence is the pass
+-- condition rather than an alpha of zero.
 local function fillAlpha(frame)
-    local c = frame and frame.bg and rawget(frame.bg, "__color")
-    return c and c[4] or nil
+    if not frame then return nil end
+    if not frame.bg then return 0 end
+    local c = rawget(frame.bg, "__color")
+    return c and c[4] or 0
 end
 
 local function shadowAlpha(obj)
@@ -698,6 +703,10 @@ check("chrome is inherited down the parent chain",
 check("and a solid window's contents stay solid",
       T.Theme:ChromeOf(T.Config.scroll.content) == "solid")
 
+check("a veiled window builds no surface texture at all",
+      T.Ballot.frame.bg == nil and T.Verdict.frame.bg == nil)
+check("nor do its rows", T.Ballot.rows[1].bg == nil)
+
 local ballotFill, rowAlpha = fillAlpha(T.Ballot.frame), fillAlpha(T.Ballot.rows[1])
 check("the container draws nothing at all", ballotFill == 0, ballotFill)
 -- Nothing is boxed. A player's solid element is their portrait disc, which is
@@ -711,24 +720,17 @@ check("an idle row shows no mark at all",
 
 -- Dialled up, the old relationship has to reappear: a row is content and
 -- carries more than the container it sits in.
-TribunalDB.settings.opacity = 1
-T.Theme:RefreshVeil()
-check("dialled up, rows are denser than their container",
-      fillAlpha(T.Ballot.rows[1]) - fillAlpha(T.Ballot.frame) > 0.5,
-      ("%.3f vs %.3f"):format(fillAlpha(T.Ballot.rows[1]), fillAlpha(T.Ballot.frame)))
-TribunalDB.settings.opacity = 0
-T.Theme:RefreshVeil()
-check("back to nothing when dialled down", fillAlpha(T.Ballot.frame) == 0,
-      rowAlpha - ballotFill)
 check("the docket's surface is untouched", fillAlpha(T.Board.frame) == 1,
       fillAlpha(T.Board.frame))
 check("the settings' surface is untouched", fillAlpha(T.Config.frame) == 1,
       fillAlpha(T.Config.frame))
 
-check("a veiled window has corner ticks, not a lid",
-      T.Ballot.frame.ticks ~= nil and #T.Ballot.frame.ticks == 8,
-      T.Ballot.frame.ticks and #T.Ballot.frame.ticks)
-check("and no border box", T.Ballot.frame.borderEdges == nil)
+-- Not a lid, not corner ticks, not a faint anything. Nothing is built.
+check("a veiled window has no edge of any kind",
+      T.Ballot.frame.ticks == nil and T.Ballot.frame.borderEdges == nil)
+check("and no grain either", T.Ballot.frame.grain == nil)
+check("while a solid window keeps its border",
+      T.Board.frame.borderEdges ~= nil and T.Board.frame.grain ~= nil)
 check("a solid window keeps its border box",
       T.Board.frame.borderEdges ~= nil and T.Board.frame.ticks == nil)
 
@@ -740,51 +742,6 @@ check("solid windows still take their depth from value alone",
       shadowAlpha(T.Board.footNote) == 0, shadowAlpha(T.Board.footNote))
 check("including their plain FontStrings",
       shadowAlpha(T.Config.recordNote) == 0, shadowAlpha(T.Config.recordNote))
-
--- The tally plate only exists when there is a tally.
-T.Verdict:Show({ list = {}, total = 0, winner = nil, count = 0, hung = true,
-                 label = "Nowhere" }, { candidates = {}, label = "Nowhere" })
-mock.Advance(1)
-check("no tally, no plate under it", T.Verdict.listScrim:IsShown() == false)
-T.Verdict:Show({ list = { { full = "Kazrul-Ravencrest", short = "Kazrul", count = 2 } },
-                 total = 2, winner = "Kazrul-Ravencrest", count = 2,
-                 hung = false, tied = false, label = "Nowhere" },
-               { candidates = {}, label = "Nowhere" })
-mock.Advance(1)
-check("a tally gets one", T.Verdict.listScrim:IsShown() == true)
-T.Verdict:Close()
-mock.Advance(1)
-
--- The slider.
-local SET = TribunalDB.settings
-check("backing defaults to none", SET.opacity == 0,
-      SET.opacity)
-
-SET.opacity = 1.0
-T.Theme:RefreshVeil()
-local dense = fillAlpha(T.Ballot.frame)
-SET.opacity = 0.4
-T.Theme:RefreshVeil()
-local thin = fillAlpha(T.Ballot.frame)
-check("the slider repaints a window that is already open", dense > thin,
-      ("%.3f vs %.3f"):format(dense, thin))
-check("100% is the densest the veil ever goes", dense < 0.36, dense)
-check("the rows follow the slider too", fillAlpha(T.Ballot.rows[1]) < 0.6,
-      fillAlpha(T.Ballot.rows[1]))
-
-SET.opacity = nil
-check("a missing setting means no backing", T.Theme:VeilAlpha("fill") == 0,
-      T.Theme:VeilAlpha("fill"))
-SET.opacity = 5
-check("the shade never scales away with the backing",
-      T.Theme:VeilAlpha("shade") == T.Theme.VEIL_FIXED.shade,
-      T.Theme:VeilAlpha("shade"))
-check("nor do the corner ticks",
-      T.Theme:VeilAlpha("edge") == T.Theme.VEIL_FIXED.edge)
-check("a nonsense setting is clamped", T.Theme:VeilAlpha("fill") < 0.36,
-      T.Theme:VeilAlpha("fill"))
-SET.opacity = 0.75
-T.Theme:RefreshVeil()
 
 --------------------------------------------------------------------------------
 -- The whole UI must still build with the art switched off

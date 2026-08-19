@@ -88,53 +88,20 @@ Theme.FONT = {
 -- them. Depth stops coming from a surface and starts coming from the type's
 -- own counter-edge, which is why `shade` does not scale away.
 --
--- Every backing alpha a veiled window can draw, at 100%. The setting scales
--- all of them together, and it defaults to zero: the ballot and the verdict
--- carry no background whatsoever, only their contents. Anyone who plays
--- somewhere bright enough to need a surface can dial one back in.
+-- A veiled window draws no surface. Not a faint one, not one at zero alpha --
+-- none is built. Anything that merely faded to zero could be resurrected by a
+-- stored setting, and was.
+--
+-- These are the only fixed quantities left, and none of them is a background:
+-- `shade` is the counter-edge that keeps type readable with nothing behind it,
+-- and `header` is the bare strip a veiled window is dragged and closed by.
 Theme.VEIL = {
-    fill  = 0.35,   -- flat panel colour across the body
-    grain = 0.55,   -- the tile is opaque, so its alpha *is* the surface
-    scrim = 0.45,   -- local plate under a block of type
-    row   = 0.95,   -- the rectangle behind a row, which is also a container
+    shade  = 0.95,
+    header = 32,
 }
-
--- Structure rather than background, so these do not scale away with the
--- setting. At zero backing they are the only things holding the window
--- together, and the shade is the only thing keeping 10px caps readable.
-Theme.VEIL_FIXED = {
-    fade  = 12,     -- px over which the top and bottom ends run to nothing
-    edge  = 0,      -- no corner ticks: they are chrome, and chrome is what goes
-    shade = 0.95,   -- see Theme:Text
-    header = 32,    -- a bare strip: somewhere to grab and somewhere to close
-}
-
-function Theme:Opacity()
-    local s = TribunalDB and TribunalDB.settings
-    local k = s and s.opacity
-    if type(k) ~= "number" then k = 0 end
-    return math.max(0, math.min(1, k))
-end
 
 function Theme:VeilAlpha(key)
-    local fixed = self.VEIL_FIXED[key]
-    if fixed then return fixed end
-    return math.min(1, (self.VEIL[key] or 1) * self:Opacity())
-end
-
--- Everything whose alpha follows the setting registers here, so dragging the
--- slider repaints the open ballot instead of waiting for the next trial.
-Theme.veiled = {}
-
-function Theme:TrackVeil(obj)
-    self.veiled[#self.veiled + 1] = obj
-    return obj
-end
-
-function Theme:RefreshVeil()
-    for _, obj in ipairs(self.veiled) do
-        if type(obj.ApplyVeil) == "function" then obj:ApplyVeil() end
-    end
+    return self.VEIL[key] or 0
 end
 
 -- Chrome is declared once, on the panel, and inherited by everything built
@@ -350,78 +317,7 @@ end
 -- A closed border is the strongest "this is a window" signal a frame has: it
 -- is the lid. Two short arms say where the corner is and let the eye close the
 -- rectangle itself, which is all a veiled window needs.
-function Theme:CornerTicks(parent, color, len)
-    len = len or 14
-    local r, g, b = self:Color(color or "hairline")
-    local out = {}
-    for _, point in ipairs({ "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }) do
-        -- One anchored point plus a size fixes the arm, so each corner needs
-        -- no per-corner sign juggling.
-        for _, size in ipairs({ { len, 1 }, { 1, len } }) do
-            local t = parent:CreateTexture(nil, "BORDER")
-            t:SetSize(size[1], size[2])
-            t:SetPoint(point, parent, point, 0, 0)
-            t:SetColorTexture(r, g, b, 1)
-            out[#out + 1] = t
-        end
-    end
-    return out
-end
 
--- A soft-ended plate under a block of type.
---
--- The veil on its own cannot hold 10px tracked caps over a snowfield, so the
--- opacity that is left gets spent exactly where something has to be read. The
--- ends run to nothing, so it never reads as a second box inside the first.
-function Theme:Scrim(parent, opts)
-    opts = opts or {}
-    local s = CreateFrame("Frame", nil, parent)
-    -- Level with the parent's own layers rather than above its other children,
-    -- so the seal, its bloom and the rows still draw over this.
-    s:SetFrameLevel(parent:GetFrameLevel())
-    if opts.height then s:SetHeight(opts.height) end
-
-    local r, g, b = self:Color(opts.color or "void")
-    local soft = opts.soft or 40
-
-    local core = s:CreateTexture(nil, "BACKGROUND")
-    core:SetPoint("TOPLEFT", soft, 0)
-    core:SetPoint("BOTTOMRIGHT", -soft, 0)
-
-    local function endCap(side)
-        local t = s:CreateTexture(nil, "BACKGROUND")
-        t:SetWidth(soft)
-        t:SetPoint("TOP" .. side)
-        t:SetPoint("BOTTOM" .. side)
-        return t
-    end
-    local left, right = endCap("LEFT"), endCap("RIGHT")
-
-    function s:ApplyVeil()
-        local a = math.min(1, Theme:VeilAlpha("scrim") * (opts.strength or 1))
-        core:SetColorTexture(r, g, b, a)
-        if left.SetGradient then
-            -- The gradient is a vertex colour and multiplies the texture, so
-            -- the texture itself has to be white for the stops to land where
-            -- they say they do.
-            left:SetColorTexture(1, 1, 1, 1)
-            right:SetColorTexture(1, 1, 1, 1)
-            local clear, full = CreateColor(r, g, b, 0), CreateColor(r, g, b, a)
-            left:SetGradient("HORIZONTAL", clear, full)
-            right:SetGradient("HORIZONTAL", full, clear)
-        else
-            left:SetColorTexture(r, g, b, a * 0.5)
-            right:SetColorTexture(r, g, b, a * 0.5)
-        end
-    end
-
-    s:ApplyVeil()
-    Theme:TrackVeil(s)
-    return s
-end
-
--- The base container: void backdrop, panel fill, optional grain, hairline edge.
--- `opts.chrome` picks the surface: "solid" (the default) or "veil".
 function Theme:Panel(parent, opts)
     opts = opts or {}
     local veil = opts.chrome == "veil"
@@ -429,86 +325,35 @@ function Theme:Panel(parent, opts)
     f:SetSize(opts.width or 380, opts.height or 240)
     f.tribunalChrome = veil and "veil" or "solid"
 
-    local fade = self:VeilAlpha("fade")
-    local pr, pg, pb = self:Color(opts.color or "panel")
+    -- A veiled window is its contents and nothing else. No fill, no grain, no
+    -- edge, no border. There is deliberately no `f.bg` to set an alpha on.
+    if veil then return f end
 
-    if veil then
-        -- The body stops short of both ends, and the ends are gradients
-        -- running to nothing, so the window has no top or bottom edge left to
-        -- read as a lid.
-        local body = f:CreateTexture(nil, "BACKGROUND")
-        body:SetPoint("TOPLEFT", 0, -fade)
-        body:SetPoint("BOTTOMRIGHT", 0, fade)
-        f.bg = body
+    f.bg = self:Fill(f, opts.color or "panel", opts.alpha or 1, "BACKGROUND")
 
-        local function endCap(side)
-            local t = f:CreateTexture(nil, "BACKGROUND")
-            t:SetHeight(fade)
-            t:SetPoint(side .. "LEFT")
-            t:SetPoint(side .. "RIGHT")
-            return t
-        end
-        f.fadeTop, f.fadeBottom = endCap("TOP"), endCap("BOTTOM")
-    else
-        f.bg = self:Fill(f, opts.color or "panel", opts.alpha or 1, "BACKGROUND")
-    end
-
-    -- Grain sits just above the fill. It must BLEND, not ADD: the tile is a
-    -- dark surface in its own right, so adding it lifts the panel most of the
-    -- way to the row colour and the two stop reading as separate planes.
-    --
-    -- Under the veil that same opacity is the point: the tile is the only
-    -- thing left with any body to it, so its alpha *is* the surface, and it
-    -- is clipped to the same inset the fill uses so the ends still dissolve.
+    -- Grain must BLEND, not ADD: the tile is a dark surface in its own right,
+    -- so adding it lifts the panel most of the way to the row colour and the
+    -- two stop reading as separate planes.
     if opts.grain ~= false then
         local grain = f:CreateTexture(nil, "BACKGROUND", nil, 1)
-        if veil then
-            grain:SetPoint("TOPLEFT", 0, -fade)
-            grain:SetPoint("BOTTOMRIGHT", 0, fade)
-        else
-            grain:SetAllPoints()
-        end
+        grain:SetAllPoints()
         if self:Art(grain, "PanelTile", "REPEAT", "REPEAT") then
             grain:SetHorizTile(true)
             grain:SetVertTile(true)
             grain:SetBlendMode("BLEND")
-            grain:SetAlpha(veil and self:VeilAlpha("grain") or 0.85)
+            grain:SetAlpha(0.85)
             f.grain = grain
         end
     end
 
-    -- No sheen and no drop shadow. A 1px highlight just inside the border is
-    -- a bevel by another name, and a hard-edged dark rectangle behind the
-    -- panel is a drop shadow. Separation here comes from value alone.
-    if veil then
-        f.ticks = self:CornerTicks(f, opts.border or "hairline")
-
-        function f:ApplyVeil()
-            local a = Theme:VeilAlpha("fill")
-            self.bg:SetColorTexture(pr, pg, pb, a)
-            local clear, full = CreateColor(pr, pg, pb, 0), CreateColor(pr, pg, pb, a)
-            for side, t in pairs({ TOP = self.fadeTop, BOTTOM = self.fadeBottom }) do
-                if t.SetGradient then
-                    t:SetColorTexture(1, 1, 1, 1)
-                    -- VERTICAL runs min at the bottom and max at the top.
-                    if side == "TOP" then t:SetGradient("VERTICAL", full, clear)
-                    else t:SetGradient("VERTICAL", clear, full) end
-                else
-                    t:SetColorTexture(pr, pg, pb, a * 0.5)
-                end
-            end
-            if self.grain then self.grain:SetAlpha(Theme:VeilAlpha("grain")) end
-            for _, t in ipairs(self.ticks) do t:SetAlpha(Theme:VeilAlpha("edge")) end
-        end
-
-        f:ApplyVeil()
-        self:TrackVeil(f)
-    else
-        self:Border(f, opts.border or "hairline", opts.borderAlpha or 1)
-    end
+    -- No sheen and no drop shadow. A 1px highlight just inside the border is a
+    -- bevel by another name, and a hard-edged dark rectangle behind the panel
+    -- is a drop shadow. Separation here comes from value alone.
+    self:Border(f, opts.border or "hairline", opts.borderAlpha or 1)
 
     return f
 end
+
 
 -- Title block shared by every window: emblem, tracked wordmark, subtitle, and
 -- a gold hairline that fades out toward both ends.
@@ -519,7 +364,7 @@ function Theme:Header(parent, title, subtitle, opts)
     local h = CreateFrame("Frame", nil, parent)
     h:SetPoint("TOPLEFT")
     h:SetPoint("TOPRIGHT")
-    h:SetHeight(opts.height or (bare and self.VEIL_FIXED.header or 56))
+    h:SetHeight(opts.height or (bare and self:VeilAlpha("header") or 56))
     h.bare = bare
 
     -- A bare header draws nothing. It exists so the window can still be
@@ -704,8 +549,10 @@ function Theme:Row(parent, opts)
     -- Under the veil the container is what goes; a row is content, so it keeps
     -- nearly all of its backing. That inversion is the whole idea: a set of
     -- floating plates held by hairlines rather than a box with things in it.
+    -- A row on a veiled window has no rectangle. The player's solid element
+    -- is their portrait; this is just a hit area with type in it.
     r.veiled = self:ChromeOf(parent) == "veil"
-    r.bg = self:Fill(r, "raised", r.veiled and self:VeilAlpha("row") or 1)
+    if not r.veiled then r.bg = self:Fill(r, "raised", 1) end
 
     r.accent = r:CreateTexture(nil, "ARTWORK")
     r.accent:SetWidth(2)
@@ -717,24 +564,16 @@ function Theme:Row(parent, opts)
     r.accentColor = opts.accentColor or "gold"
 
     function r:Highlight(on)
-        local c = on and self.accentColor or "hairline"
-        self.accent:SetColorTexture(Theme:Color(c))
-        self.bg:SetColorTexture(Theme:Color(on and "raisedHi" or "raised",
-            self.veiled and Theme:VeilAlpha("row") or 1))
-
-        if self.veiled and Theme:VeilAlpha("row") < 0.05 then
-            -- Floating: no rectangle, so the mark only shows when it means
-            -- something.
-            self.accent:SetAlpha((on or self.selected) and 1 or 0)
+        self.accent:SetColorTexture(Theme:Color(on and self.accentColor or "hairline"))
+        if self.bg then
+            self.bg:SetColorTexture(Theme:Color(on and "raisedHi" or "raised"))
         else
-            self.accent:SetAlpha(1)
+            -- Floating: with no rectangle, an idle mark on every row is a
+            -- column of clutter. It appears only where there is state.
+            self.accent:SetAlpha((on or self.selected) and 1 or 0)
         end
     end
 
-    if r.veiled then
-        function r:ApplyVeil() self:Highlight(self.selected) end
-        Theme:TrackVeil(r)
-    end
 
     function r:SetSelected(on, instant)
         local was = self.selected
