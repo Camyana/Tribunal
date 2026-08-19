@@ -339,10 +339,10 @@ SlashCmdList.TRIBUNAL = function(input)
         end
 
         -- The circular mask is the single point of failure for every disc in
-        -- the addon; if this path stops resolving they all vanish at once.
-        local probe = UIParent:CreateTexture()
-        probe:SetTexture("Interface\CharacterFrame\TempPortraitAlphaMask")
-        print(("  circle mask resolves: |cffE8B23A%s|r"):format(tostring(probe:GetTexture() ~= nil)))
+        -- the addon: a mask texture that fails to load masks everything away
+        -- rather than nothing, so one bad path erases them all at once.
+        print(("  circle mask in use: |cffE8B23A%s|r")
+            :format(tostring(T.Theme:MaskPath() or "NONE - discs will be square")))
         local emblem = UIParent:CreateTexture()
         emblem:SetTexture(T.TEXTURE .. "MinimapIcon")
         print(("  minimap icon path: %s"):format(tostring(emblem:GetTexture())))

@@ -10,6 +10,7 @@ __pycache__/
 # Working renders. The scripts that produce them are tracked; the output is not.
 Art/review/
 Art/review2/
+Art/transparency/
 Art/source/*.png
 Art/*.png
 

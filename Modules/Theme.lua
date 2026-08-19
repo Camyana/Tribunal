@@ -915,14 +915,49 @@ end
 -- Portraits
 --------------------------------------------------------------------------------
 
--- The circular alpha mask Blizzard ships. Used by the seal, the minimap
--- button, and portraits, so every disc in the addon is cut the same way.
+-- Every disc in the addon is cut with the same mask: the seal, the minimap
+-- button, and portraits.
+--
+-- We ship our own. Blizzard's Interface\CharacterFrame\TempPortraitAlphaMask
+-- was removed in 12.1, and because a mask texture that fails to load masks
+-- everything away rather than nothing, that single dead path silently erased
+-- every circular element at once. Owning the file removes the dependency; the
+-- Blizzard paths stay as fallbacks in case ours is ever missing.
+local MASK_PATH
+
+function Theme:MaskPath()
+    if MASK_PATH ~= nil then return MASK_PATH or nil end
+
+    local probe = UIParent:CreateTexture()
+    for _, path in ipairs({
+        T.TEXTURE .. "CircleMask",
+        "Interface\\Masks\\CircleMaskScalable",
+        "Interface\\CharacterFrame\\TempPortraitAlphaMask",
+    }) do
+        probe:SetTexture(path)
+        if probe:GetTexture() then MASK_PATH = path break end
+    end
+    probe:SetTexture(nil)
+
+    if MASK_PATH == nil then MASK_PATH = false end
+    return MASK_PATH or nil
+end
+
 function Theme:CircleMask(frame)
+    local path = self:MaskPath()
+    if not path then return nil end
     local m = frame:CreateMaskTexture()
     m:SetAllPoints(frame)
-    m:SetTexture("Interface\CharacterFrame\TempPortraitAlphaMask",
-                 "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    m:SetTexture(path, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
     return m
+end
+
+-- Cut a texture to a circle. Does nothing at all if no mask is available, so
+-- a missing file costs us round corners rather than the whole element.
+function Theme:Circle(tex, frame, mask)
+    mask = mask or self:CircleMask(frame)
+    if mask and tex then tex:AddMaskTexture(mask) end
+    return mask
 end
 
 -- A unit portrait in the addon's language: circular, cut with the same mask as
@@ -939,7 +974,7 @@ function Theme:Portrait(parent, size)
 
     p.ring = p:CreateTexture(nil, "BACKGROUND")
     p.ring:SetAllPoints()
-    p.ring:AddMaskTexture(self:CircleMask(p))
+    self:Circle(p.ring, p)
 
     -- A disc one pixel smaller on every side leaves the ring as a 1px stroke.
     local inner = CreateFrame("Frame", nil, p)
@@ -949,11 +984,11 @@ function Theme:Portrait(parent, size)
 
     p.fill = inner:CreateTexture(nil, "BORDER")
     p.fill:SetAllPoints()
-    p.fill:AddMaskTexture(innerMask)
+    self:Circle(p.fill, inner, innerMask)
 
     p.icon = inner:CreateTexture(nil, "ARTWORK")
     p.icon:SetAllPoints()
-    p.icon:AddMaskTexture(innerMask)
+    self:Circle(p.icon, inner, innerMask)
 
     function p:SetRingColor(r, g, b, a)
         self.ring:SetColorTexture(r, g, b, a or 1)
@@ -986,7 +1021,7 @@ function Theme:Portrait(parent, size)
 
         local coords = class and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[class]
         if coords then
-            self.icon:SetTexture("Interface\TargetingFrame\UI-Classes-Circles")
+            self.icon:SetTexture("Interface\\TargetingFrame\\UI-Classes-Circles")
             self.icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
             self.icon:Show()
             self.mode = "class"

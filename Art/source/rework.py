@@ -118,3 +118,29 @@ for name in ("Laurel", "Seal", "Corner"):
     if os.path.exists(p):
         os.remove(p)
         print(f"  {name:<12} -> removed (review: drop / redraw in code)")
+
+
+# --- 4. circle mask ---------------------------------------------------------
+# Blizzard's Interface\CharacterFrame\TempPortraitAlphaMask is gone in 12.1,
+# and every masked disc in the addon depended on it. Shipping our own removes
+# the dependency on a file path that can vanish in any patch.
+def circle_mask(size=256):
+    yy, xx = np.mgrid[0:size, 0:size].astype(float)
+    c = (size - 1) / 2.0
+    r = np.hypot(xx - c, yy - c)
+    edge = c - 0.5
+    # One pixel of antialiasing at the rim, opaque everywhere inside.
+    a = np.clip(edge - r + 0.5, 0.0, 1.0)
+    out = np.zeros((size, size, 4), np.uint8)
+    out[..., :3] = 255
+    out[..., 3] = np.clip(a * 255.0, 0, 255).astype(np.uint8)
+    return Image.fromarray(out, "RGBA")
+
+
+m = circle_mask()
+m.save(os.path.join(TEX, "CircleMask.tga"), format="TGA")
+a = np.asarray(m)
+mid = a[a.shape[0] // 2, :, 3]
+print(f"  CircleMask   -> 256px, alpha {a[...,3].min()}..{a[...,3].max()}, "
+      f"corners {a[0,0,3]}, centre {a[128,128,3]}, "
+      f"opaque span {int((mid > 127).sum())}/256 across the middle")

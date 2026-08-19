@@ -63,14 +63,6 @@ end
 -- The button
 --------------------------------------------------------------------------------
 
-local function CircleMask(frame)
-    local mask = frame:CreateMaskTexture()
-    mask:SetAllPoints(frame)
-    mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask",
-                    "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-    return mask
-end
-
 function MM:BuildButton()
     if self.button then return self.button end
 
@@ -81,24 +73,20 @@ function MM:BuildButton()
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     b:RegisterForDrag("LeftButton")
 
-    local mask = CircleMask(b)
-
     -- Gold disc under a slightly smaller dark disc reads as a 1px ring
     -- without needing a ring texture.
     b.ring = b:CreateTexture(nil, "BACKGROUND")
     b.ring:SetAllPoints()
     b.ring:SetColorTexture(Theme:Color("gold", 0.85))
-    b.ring:AddMaskTexture(mask)
+    Theme:Circle(b.ring, b)
 
     local innerHolder = CreateFrame("Frame", nil, b)
     innerHolder:SetPoint("CENTER")
     innerHolder:SetSize(BUTTON_SIZE - 2, BUTTON_SIZE - 2)
-    local innerMask = CircleMask(innerHolder)
-
     b.disc = innerHolder:CreateTexture(nil, "BORDER")
     b.disc:SetAllPoints()
     b.disc:SetColorTexture(Theme:Color("panel", 1))
-    b.disc:AddMaskTexture(innerMask)
+    Theme:Circle(b.disc, innerHolder)
 
     b.glow = b:CreateTexture(nil, "BACKGROUND", nil, -1)
     b.glow:SetSize(BUTTON_SIZE * 2.2, BUTTON_SIZE * 2.2)
