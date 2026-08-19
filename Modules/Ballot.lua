@@ -76,33 +76,12 @@ function Ballot:Build()
     question:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, -72)
     self.question = question
 
-    -- Countdown: a Cooldown frame gives us a real radial sweep for free.
-    local ring = CreateFrame("Frame", nil, f)
-    ring:SetSize(26, 26)
-    ring:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PAD - 30, -66)
-
-    local mask = ring:CreateMaskTexture()
-    mask:SetAllPoints(ring)
-    mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask",
-                    "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-
-    local disc = ring:CreateTexture(nil, "BACKGROUND")
-    disc:SetAllPoints()
-    disc:SetColorTexture(Theme:Color("void"))
-    disc:AddMaskTexture(mask)
-
-    local cd = CreateFrame("Cooldown", nil, ring, "CooldownFrameTemplate")
-    cd:SetAllPoints()
-    cd:SetReverse(true)
-    cd:SetDrawEdge(false)
-    cd:SetDrawBling(false)
-    cd:SetHideCountdownNumbers(true)
-    cd:SetSwipeColor(Theme:Color("gold", 0.55))
-    self.cooldown = cd
-
-    self.clock = Theme:Text(f, 16, { color = "gold", justify = "RIGHT", font = Theme.FONT.narrow })
-    self.clock:SetPoint("RIGHT", f, "TOPRIGHT", -PAD, 0)
-    self.clock:SetPoint("TOP", ring, "TOP", 0, -4)
+    -- The countdown is the number and nothing else. A cooldown swipe would be
+    -- the only filled disc in a UI made of hairlines, and its mask does not
+    -- apply to the swipe, so it drew as a blocky wedge.
+    self.clock = Theme:Text(f, 20, { color = "gold", justify = "RIGHT",
+        font = Theme.FONT.narrow })
+    self.clock:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PAD, -68)
 
     -- Rows ----------------------------------------------------------------
     self.list = CreateFrame("Frame", nil, f)
@@ -241,9 +220,7 @@ function Ballot:Open(session)
     -- Countdown. The colour has to be reset here, not just in Build: the
     -- last five seconds turn the ring crimson and it would stay that way for
     -- every later ballot.
-    self.cooldown:SetSwipeColor(Theme:Color("gold", 0.55))
     self.clock:SetTextColor(Theme:Color("gold"))
-    self.cooldown:SetCooldown(session.startedAt, session.duration)
     self.lastTick = nil
     f:SetScript("OnUpdate", function() Ballot:OnUpdate() end)
 
@@ -287,7 +264,6 @@ function Ballot:OnUpdate()
 
     if whole <= 5 then
         self.clock:SetTextColor(Theme:Color("crimson"))
-        self.cooldown:SetSwipeColor(Theme:Color("crimson", 0.5))
         if whole ~= self.lastTick and whole > 0 then
             self.lastTick = whole
             T:Sound("Tick")
@@ -333,8 +309,9 @@ function Ballot:OnVoteChanged()
     end
 
     local electorate = math.max(s.electorate or 1, s.voterCount)
-    self.progressLabel:SetText(("%d of %d ballots cast")
-        :format(s.voterCount, electorate):upper())
+    self.progressLabel:SetText(("%d of %d %s cast")
+        :format(s.voterCount, electorate,
+                electorate == 1 and "ballot" or "ballots"):upper())
     self.statusLabel:SetRightText(s.myVote and "Your ballot is sealed" or "You have not voted")
     self.statusLabel:SetTextColor(Theme:Color(s.myVote and "text" or "textDim"))
 
@@ -346,7 +323,6 @@ function Ballot:OnTallying()
 
     self.frame:SetScript("OnUpdate", nil)
     self.clock:SetText("")
-    self.cooldown:Clear()
     self:StopAmbient()
 
     self.progressLabel:SetText("Counting the ballots")

@@ -306,6 +306,47 @@ SlashCmdList.TRIBUNAL = function(input)
         end
         if n == 0 then T:Print("Nobody else in the group is running Tribunal.") end
 
+    elseif cmd == "debug" then
+        T:Print("Diagnostics:")
+        local S = TribunalDB.settings
+        print(("  portraits setting: |cffE8B23A%s|r   art enabled: |cffE8B23A%s|r")
+            :format(tostring(S.portraits), tostring(T.Theme.useArt)))
+        print(("  in group: %s   peers: %d   session: %s")
+            :format(tostring(Comm and true or true),
+                    T.Comm:PeerCount(),
+                    T.Session.current and T.Session.current.state or "none"))
+
+        for _, m in ipairs(T:GetRoster()) do
+            print(("  %s  unit=%s exists=%s connected=%s visible=%s")
+                :format(m.short, tostring(m.unit),
+                        tostring(UnitExists(m.unit)),
+                        tostring(UnitIsConnected(m.unit)),
+                        tostring(UnitIsVisible(m.unit))))
+        end
+
+        local rows = T.Ballot.rows or {}
+        if #rows == 0 then
+            print("  no ballot has been built yet; call a vote first")
+        end
+        for i, row in ipairs(rows) do
+            if row:IsShown() and row.candidate then
+                print(("  row %d: %s  portrait shown=%s mode=%s texture=%s")
+                    :format(i, row.candidate.short,
+                            tostring(row.portrait:IsShown()),
+                            tostring(row.portrait.mode),
+                            tostring(row.portrait.icon:GetTexture())))
+            end
+        end
+
+        -- The circular mask is the single point of failure for every disc in
+        -- the addon; if this path stops resolving they all vanish at once.
+        local probe = UIParent:CreateTexture()
+        probe:SetTexture("Interface\CharacterFrame\TempPortraitAlphaMask")
+        print(("  circle mask resolves: |cffE8B23A%s|r"):format(tostring(probe:GetTexture() ~= nil)))
+        local emblem = UIParent:CreateTexture()
+        emblem:SetTexture(T.TEXTURE .. "MinimapIcon")
+        print(("  minimap icon path: %s"):format(tostring(emblem:GetTexture())))
+
     elseif cmd == "reset" then
         if rest == "confirm" then
             wipe(TribunalDB.players)
@@ -324,6 +365,7 @@ SlashCmdList.TRIBUNAL = function(input)
         print("  |cffE8B23A/trib config|r - settings")
         print("  |cffE8B23A/trib who|r - who in the group has the addon")
         print("  |cffE8B23A/trib minimap|r - toggle the minimap button")
+        print("  |cffE8B23A/trib debug|r - print diagnostics")
         print("  |cffE8B23A/trib reset|r - expunge the docket")
     end
 end

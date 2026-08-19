@@ -7,7 +7,7 @@ local Theme, Anim = T.Theme, T.Anim
 
 local PAD = 16
 local ROW_H, ROW_GAP = 40, 8
-local HIST_H = 32
+local HIST_H = 40
 local VIEW_H = 288
 
 Board.rows = {}
@@ -68,18 +68,20 @@ end
 local function BuildHistoryRow(parent)
     local r = Theme:Row(parent, { height = HIST_H, interactive = false })
 
+    r.who = Theme:Text(r, 13, { color = "text" })
+    r.who:SetPoint("BOTTOMLEFT", r, "LEFT", 12, 1)
+
     r.when = Theme:Label(r, "", { size = 9, spacing = 1, color = "textDim" })
-    r.when:SetPoint("TOPLEFT", 12, -6)
+    r.when:SetPoint("TOPLEFT", r, "LEFT", 12, -3)
 
-    r.who = Theme:Text(r, 12, { color = "text" })
-    r.who:SetPoint("BOTTOMLEFT", 12, 7)
-
-    r.where = Theme:Label(r, "", { size = 9, spacing = 1, color = "textDim" })
-    r.where:SetPoint("BOTTOMRIGHT", -12, 7)
-
-    r.score = Theme:Text(r, 11, { color = "text", justify = "RIGHT",
+    r.score = Theme:Text(r, 13, { color = "text", justify = "RIGHT",
         font = Theme.FONT.narrow })
-    r.score:SetPoint("TOPRIGHT", -12, -6)
+    r.score:SetPoint("BOTTOMRIGHT", r, "RIGHT", -12, 1)
+
+    -- Bounded: a long keystone name would otherwise run back into the name.
+    r.where = Theme:Label(r, "", { size = 9, spacing = 1, color = "textDim",
+        maxWidth = 200 })
+    r.where:SetPoint("TOPRIGHT", r, "RIGHT", -12, -3)
 
     return r
 end
@@ -184,12 +186,12 @@ function Board:Build()
     -- Bounded to the space left of the Convene button, which is 148 wide.
     self.footNote = Theme:Label(f, "", {
         size = 10, spacing = 1.4, color = "textDim",
-        maxWidth = 424 - PAD * 2 - 148 - 16,
+        maxWidth = 424 - PAD * 2 - 156 - 16,
     })
     self.footNote:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", PAD, 16)
 
     self.callButton = Theme:Button(f, "Convene the court", {
-        width = 148, height = 24, accent = true,
+        width = 156, height = 24, accent = true,
         tooltip = "Open a ballot for everyone in your group who is running Tribunal.",
         onClick = function() T.Session:Request() end,
     })
@@ -285,7 +287,9 @@ function Board:RenderStandings(animate)
         r.name:SetTextColor(Theme:Color("text"))
 
         local rate = e.trials > 0 and math.floor(e.rate * 100 + 0.5) or 0
-        r.meta:SetText(("%d trials  %s  %d%% convicted"):format(e.trials, "\194\183", rate):upper())
+        r.meta:SetText(("%d %s  %s  %d%% convicted")
+            :format(e.trials, e.trials == 1 and "trial" or "trials",
+                    "\194\183", rate):upper())
 
         -- Gold marks one thing in this list: who is top of it. The rank
         -- numeral and the row accent carry that between them.

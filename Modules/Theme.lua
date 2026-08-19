@@ -167,6 +167,12 @@ function Theme:Spaced(parent, text, opts)
                 g:SetFont(font, size, flags)
                 self.glyphs[i] = g
             end
+            -- Colour and alpha live on the frame, not on the glyphs, because
+            -- a longer string later on mints new glyphs that would otherwise
+            -- be born white.
+            local c = self.color
+            if c then g:SetTextColor(c[1], c[2], c[3], c[4]) end
+            if self.glyphAlpha then g:SetAlpha(self.glyphAlpha) end
             g:SetText(ch)
             starts[i] = x
 
@@ -207,11 +213,12 @@ function Theme:Spaced(parent, text, opts)
     end
 
     function f:SetTextColor(r, g, b, a)
-        for _, glyph in ipairs(self.glyphs) do glyph:SetTextColor(r, g, b, a) end
         self.color = { r, g, b, a }
+        for _, glyph in ipairs(self.glyphs) do glyph:SetTextColor(r, g, b, a) end
     end
 
     function f:SetAlphaAll(a)
+        self.glyphAlpha = a
         for _, glyph in ipairs(self.glyphs) do glyph:SetAlpha(a) end
     end
 
@@ -239,7 +246,7 @@ function Theme:Panel(parent, opts)
     local f = CreateFrame("Frame", opts.name, parent or UIParent)
     f:SetSize(opts.width or 380, opts.height or 240)
 
-    f.bg = self:Fill(f, opts.color or "panel", opts.alpha or 0.97, "BACKGROUND")
+    f.bg = self:Fill(f, opts.color or "panel", opts.alpha or 1, "BACKGROUND")
 
     -- Grain sits just above the fill. It must BLEND, not ADD: the tile is a
     -- dark surface in its own right, so adding it lifts the panel most of the

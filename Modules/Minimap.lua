@@ -110,7 +110,10 @@ function MM:BuildButton()
     end
     b.glow:SetVertexColor(Theme:Color("gold"))
 
-    b.icon = b:CreateTexture(nil, "OVERLAY")
+    -- On innerHolder, not on b. A child frame draws entirely above its
+    -- parent's textures regardless of draw layer, so an icon on b would sit
+    -- behind the disc and the button would render as an empty ring.
+    b.icon = innerHolder:CreateTexture(nil, "ARTWORK")
     b.icon:SetSize(17, 17)
     b.icon:SetPoint("CENTER")
     if Theme:Art(b.icon, "MinimapIcon") or Theme:Art(b.icon, "Emblem") then
@@ -125,14 +128,18 @@ function MM:BuildButton()
     -- An unread-style pip when a trial is live and you have not voted.
     -- Inset so it sits on the button rather than off its edge, over a dark
     -- backing so it still reads against a bright minimap tile.
-    b.pipHalo = b:CreateTexture(nil, "OVERLAY", nil, 1)
+    local top = CreateFrame("Frame", nil, b)
+    top:SetAllPoints()
+    top:SetFrameLevel(innerHolder:GetFrameLevel() + 1)
+
+    b.pipHalo = top:CreateTexture(nil, "OVERLAY", nil, 1)
     b.pipHalo:SetSize(9, 9)
     b.pipHalo:SetPoint("TOPRIGHT", -1, -1)
     b.pipHalo:SetColorTexture(Theme:Color("void", 0.9))
     b.pipHalo:SetRotation(math.pi / 4)
     b.pipHalo:Hide()
 
-    b.pip = b:CreateTexture(nil, "OVERLAY", nil, 2)
+    b.pip = top:CreateTexture(nil, "OVERLAY", nil, 2)
     b.pip:SetSize(6, 6)
     b.pip:SetPoint("CENTER", b.pipHalo, "CENTER", 0, 0)
     b.pip:SetColorTexture(Theme:Color("crimson"))
