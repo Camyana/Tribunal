@@ -96,6 +96,7 @@ Theme.VEIL = {
     fill  = 0.35,   -- flat panel colour across the body
     grain = 0.55,   -- the tile is opaque, so its alpha *is* the surface
     scrim = 0.45,   -- local plate under a block of type
+    row   = 0.95,   -- the rectangle behind a row, which is also a container
 }
 
 -- Structure rather than background, so these do not scale away with the
@@ -105,7 +106,6 @@ Theme.VEIL_FIXED = {
     fade  = 12,     -- px over which the top and bottom ends run to nothing
     edge  = 0,      -- no corner ticks: they are chrome, and chrome is what goes
     shade = 0.95,   -- see Theme:Text
-    row   = 1,      -- a row is a player. Players are solid, always.
     header = 32,    -- a bare strip: somewhere to grab and somewhere to close
 }
 
@@ -721,6 +721,14 @@ function Theme:Row(parent, opts)
         self.accent:SetColorTexture(Theme:Color(c))
         self.bg:SetColorTexture(Theme:Color(on and "raisedHi" or "raised",
             self.veiled and Theme:VeilAlpha("row") or 1))
+
+        if self.veiled and Theme:VeilAlpha("row") < 0.05 then
+            -- Floating: no rectangle, so the mark only shows when it means
+            -- something.
+            self.accent:SetAlpha((on or self.selected) and 1 or 0)
+        else
+            self.accent:SetAlpha(1)
+        end
     end
 
     if r.veiled then

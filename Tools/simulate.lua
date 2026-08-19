@@ -370,6 +370,47 @@ check("docket capped at 200", #TribunalDB.history == 200, #TribunalDB.history)
 T.Session.current = nil
 
 --------------------------------------------------------------------------------
+-- Saved-variable migration
+--------------------------------------------------------------------------------
+
+section("Migration")
+
+-- DeepFill only fills in what is missing, so changing a default does nothing
+-- for anyone who already has the old value written to disk. This is exactly
+-- how a shipped build kept drawing a surface after the default said not to.
+local function loadWith(saved)
+    _G.TribunalDB = saved
+    local T2 = {}
+    for _, file in ipairs(FILES) do
+        local chunk = assert(loadfile(file))
+        chunk("Tribunal", T2)
+    end
+    mock.Fire("ADDON_LOADED", "Tribunal")
+    return _G.TribunalDB
+end
+
+local keep = _G.TribunalDB
+
+local old = loadWith({ version = 1, settings = { opacity = 0.75 } })
+check("the old default is migrated away", old.settings.opacity == 0,
+      old.settings.opacity)
+check("and the version moves on", old.version == 2, old.version)
+
+local chosen = loadWith({ version = 1, settings = { opacity = 0.55 } })
+check("a value the player chose is left alone", chosen.settings.opacity == 0.55,
+      chosen.settings.opacity)
+
+local fresh = loadWith(nil)
+check("a fresh install starts with no backing", fresh.settings.opacity == 0,
+      fresh.settings.opacity)
+
+local current = loadWith({ version = 2, settings = { opacity = 0.75 } })
+check("an already-migrated database is not touched again",
+      current.settings.opacity == 0.75, current.settings.opacity)
+
+_G.TribunalDB = keep
+
+--------------------------------------------------------------------------------
 -- The verdict seal carries the convicted player's face
 --------------------------------------------------------------------------------
 
@@ -659,9 +700,14 @@ check("and a solid window's contents stay solid",
 
 local ballotFill, rowAlpha = fillAlpha(T.Ballot.frame), fillAlpha(T.Ballot.rows[1])
 check("the container draws nothing at all", ballotFill == 0, ballotFill)
--- A row is a player, and the players are what you are choosing between, so
--- they are solid at every setting. Only the surface behind them is optional.
-check("but the rows stay solid", rowAlpha == 1, rowAlpha)
+-- Nothing is boxed. A player's solid element is their portrait disc, which is
+-- a texture and always draws; the rectangle behind the row is a container and
+-- goes with every other container.
+check("and neither do the rows", rowAlpha == 0, rowAlpha)
+check("the portrait is the solid element instead",
+      T.Ballot.rows[1].portrait:IsShown() == true)
+check("an idle row shows no mark at all",
+      T.Ballot.rows[1].accent:GetAlpha() == 0, T.Ballot.rows[1].accent:GetAlpha())
 
 -- Dialled up, the old relationship has to reappear: a row is content and
 -- carries more than the container it sits in.
@@ -723,8 +769,8 @@ local thin = fillAlpha(T.Ballot.frame)
 check("the slider repaints a window that is already open", dense > thin,
       ("%.3f vs %.3f"):format(dense, thin))
 check("100% is the densest the veil ever goes", dense < 0.36, dense)
-check("and stay solid whatever the slider says",
-      fillAlpha(T.Ballot.rows[1]) == 1, fillAlpha(T.Ballot.rows[1]))
+check("the rows follow the slider too", fillAlpha(T.Ballot.rows[1]) < 0.6,
+      fillAlpha(T.Ballot.rows[1]))
 
 SET.opacity = nil
 check("a missing setting means no backing", T.Theme:VeilAlpha("fill") == 0,

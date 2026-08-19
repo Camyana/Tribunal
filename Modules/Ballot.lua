@@ -48,6 +48,22 @@ local function BuildRow(parent, index)
     row.seal:SetRotation(math.pi / 4)
     row.seal:Hide()
 
+    -- Floating, there is no rectangle to light up, so hover lives on the two
+    -- things that are actually there: the name and the portrait's ring.
+    row.OnEnterExtra = function(self)
+        if not self.candidate or self.selected then return end
+        self.name:SetTextColor(Theme:Color("text"))
+        if Ballot.portraits then
+            self.portrait:SetRingColor(Theme:Color("goldLight", 0.9))
+        end
+    end
+
+    row.OnLeaveExtra = function(self)
+        if not self.candidate or self.selected then return end
+        self.name:SetTextColor(Theme:Color("text", 0.86))
+        if Ballot.portraits then self.portrait:ResetRing() end
+    end
+
     row:SetScript("OnClick", function(self)
         if not self.candidate then return end
         T.Session:Cast(self.candidate.full)

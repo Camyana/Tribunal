@@ -27,7 +27,7 @@ end
 --------------------------------------------------------------------------------
 
 local DEFAULTS = {
-    version = 1,
+    version = 2,
     settings = {
         voteDuration    = 30,     -- seconds a ballot stays open
         voteCooldown    = 60,     -- seconds before the same player may call again
@@ -63,6 +63,23 @@ local function DeepFill(target, defaults)
         end
     end
     return target
+end
+
+-- Changing a default does nothing for anyone who already has the old value on
+-- disk, because DeepFill only fills in what is missing. Anything that changes
+-- the meaning of an existing setting has to be migrated explicitly.
+local function Migrate(db, from)
+    if not from then return end          -- fresh install; defaults are correct
+    if from >= DEFAULTS.version then return end
+
+    -- v2: the ballot and the verdict stopped drawing a surface. Anyone still
+    -- carrying the old default was carrying one they never chose, so move them
+    -- to the new default. A value they picked themselves is left alone.
+    if from < 2 and db.settings and db.settings.opacity == 0.75 then
+        db.settings.opacity = 0
+    end
+
+    db.version = DEFAULTS.version
 end
 
 --------------------------------------------------------------------------------
@@ -256,7 +273,10 @@ T:On("ADDON_LOADED", function(addon)
     if addon ~= ADDON or booted then return end
     booted = true
 
+    -- Read the stored version before DeepFill invents one.
+    local from = TribunalDB and TribunalDB.version
     TribunalDB = DeepFill(TribunalDB or {}, DEFAULTS)
+    Migrate(TribunalDB, from)
 
     for _, m in ipairs(T.modules) do
         if m.OnInit then
@@ -346,6 +366,8 @@ SlashCmdList.TRIBUNAL = function(input)
         -- The circular mask is the single point of failure for every disc in
         -- the addon: a mask texture that fails to load masks everything away
         -- rather than nothing, so one bad path erases them all at once.
+        print(("  backing: |cffE8B23A%.2f|r   db version: |cffE8B23A%s|r")
+            :format(T.Theme:Opacity(), tostring(TribunalDB.version)))
         print(("  circle mask in use: |cffE8B23A%s|r")
             :format(tostring(T.Theme:MaskPath() or "NONE - discs will be square")))
         local emblem = UIParent:CreateTexture()
